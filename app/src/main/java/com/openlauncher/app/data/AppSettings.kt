@@ -64,8 +64,8 @@ data class WidgetConfig(
 
 data class AppSettings(
     val vehicleName: String = "MY CAR",
-    val accentColor: Int = Color.White.toArgb(),
-    val backgroundColor: Int = Color.Black.toArgb(),
+    val accentColor: Int = Color(0xFF32FAA9).toArgb(),
+    val backgroundColor: Int = Color(0xFFECEEF4).toArgb(),
     val fontColor: Int = Color.White.toArgb(),
     val wallpaperUri: String = "",
     val fontBold: Boolean = false,
@@ -112,7 +112,7 @@ data class AppSettings(
     val vitalsAsBars: Boolean = false,
     val speedometerDigitalOnly: Boolean = false,
     val gradientDirection: GradientDirection = GradientDirection.DIAGONAL,
-    val useCustomBackgroundColor: Boolean = false,
+    val useCustomBackgroundColor: Boolean = true,
     // In-app header row (vehicle name, wifi/data icons, edit-widgets button) —
     // distinct from the two below, which are the real Android system bars.
     val hideAppHeader: Boolean = true,

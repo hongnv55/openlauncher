@@ -52,6 +52,20 @@ android {
     }
 }
 
+// Renames the assembled APK to OpenLauncher-v{versionName}.apk (no
+// "-platform" here — gradle's own signing is irrelevant, replaced by
+// .claude/keys/sign.sh afterward, which is what actually produces the
+// platform-signed OpenLauncher-v{versionName}-platform.apk).
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
+                output.outputFileName.set("OpenLauncher-v${android.defaultConfig.versionName}.apk")
+            }
+        }
+    }
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
     implementation(composeBom)
