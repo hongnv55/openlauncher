@@ -64,7 +64,8 @@ private val ALL_WIDGET_TYPES = listOf(
     WidgetTypeInfo("SPEEDOMETER", "SPEED",       Icons.Default.Speed,         "GPS speed"),
     WidgetTypeInfo("VITALS",      "VITALS",      Icons.Default.Dns,           "Head Unit Health / Vitals"),
     WidgetTypeInfo("TRIP_TRACKER", "TRIP TRACKER", Icons.Default.Map,          "Trip logs & stats"),
-    WidgetTypeInfo("SOUNDBOARD",  "SOUNDBOARD",  Icons.Default.Piano,         "Custom sound pads")
+    WidgetTypeInfo("SOUNDBOARD",  "SOUNDBOARD",  Icons.Default.Piano,         "Custom sound pads"),
+    WidgetTypeInfo("PIP",         "PIP",         Icons.Default.PictureInPicture, "Floating app overlay (beta)")
 )
 
 private fun canAddWidget(settings: com.openlauncher.app.data.AppSettings): Boolean {
@@ -78,6 +79,7 @@ private fun canAddWidget(settings: com.openlauncher.app.data.AppSettings): Boole
         if (settings.showVitals) add("VITALS")
         if (settings.showTripTracker) add("TRIP_TRACKER")
         if (settings.showSoundboard) add("SOUNDBOARD")
+        if (settings.showPip) add("PIP")
     }
     val activeWidgets = settings.widgetLayout.filter { it.enabled && it.id in visibleIds }
     val occupied = buildSet<Pair<Int, Int>> {
@@ -103,6 +105,7 @@ fun HomeScreen(
     isWifi: Boolean,
     isData: Boolean,
     isDayMode: Boolean = false,
+    isActive: Boolean = true,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrev: () -> Unit,
@@ -112,9 +115,11 @@ fun HomeScreen(
     onAssignAndroidAuto: () -> Unit,
     onClearCarPlay: () -> Unit,
     onClearAndroidAuto: () -> Unit,
-    onAssignPip: () -> Unit,
-    onClearPip: () -> Unit,
-    onLaunchPip: () -> Unit,
+    onAssignPip: (slot: Int) -> Unit,
+    onClearPip: (slot: Int) -> Unit,
+    onSetPipSplit: (Float) -> Unit,
+    onSetPipAppCount: (Int) -> Unit,
+    onSwapPipApps: () -> Unit = {},
     onTapNowPlaying: () -> Unit,
     onUpdateWidget: (id: String, spanX: Int, spanY: Int) -> Unit,
     onMoveWidget: (id: String, gridX: Int, gridY: Int) -> Unit,
@@ -148,6 +153,12 @@ fun HomeScreen(
         hasWallpaper -> Color(0x22FFFFFF)
         else         -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f)
     }
+    val launcherBackground = when {
+        hasWallpaper                       -> Color.Black
+        settings.useCustomBackgroundColor -> Color(settings.backgroundColor)
+        isDayMode                          -> Color(0xFFEEEEEE)
+        else                               -> Color.Black
+    }
     val headerTextColor   = if (isDayMode) Color(0xFF111111) else accent
     val statusIconColor   = if (isDayMode) Color(0xFF444444) else Color(0xFF666666)
     val controlIconColor  = if (isDayMode) Color(0xFF666666) else Color(0xFF444444)
@@ -163,59 +174,61 @@ fun HomeScreen(
     Column(modifier = modifier.fillMaxSize()) {
 
         // ── Header ──────────────────────────────────────────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text          = settings.vehicleName.uppercase(),
-                style         = MaterialTheme.typography.titleLarge,
-                color         = headerTextColor,
-                letterSpacing = 3.sp,
-                fontSize      = 14.sp
-            )
-            Spacer(Modifier.weight(1f))
-            AnimatedVisibility(visible = isWifi, enter = fadeIn(), exit = fadeOut()) {
-                Icon(Icons.Default.Wifi, "WiFi", tint = statusIconColor, modifier = Modifier.size(16.dp))
-            }
-            if (isWifi) Spacer(Modifier.width(6.dp))
-            AnimatedVisibility(visible = isData, enter = fadeIn(), exit = fadeOut()) {
-                Icon(Icons.Default.SignalCellularAlt, "Data", tint = statusIconColor, modifier = Modifier.size(16.dp))
-            }
-            if (isLandscape) {
-                Spacer(Modifier.width(8.dp))
-                if (editMode) {
+        if (!settings.hideAppHeader) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text          = settings.vehicleName.uppercase(),
+                    style         = MaterialTheme.typography.titleLarge,
+                    color         = headerTextColor,
+                    letterSpacing = 3.sp,
+                    fontSize      = 14.sp
+                )
+                Spacer(Modifier.weight(1f))
+                AnimatedVisibility(visible = isWifi, enter = fadeIn(), exit = fadeOut()) {
+                    Icon(Icons.Default.Wifi, "WiFi", tint = statusIconColor, modifier = Modifier.size(16.dp))
+                }
+                if (isWifi) Spacer(Modifier.width(6.dp))
+                AnimatedVisibility(visible = isData, enter = fadeIn(), exit = fadeOut()) {
+                    Icon(Icons.Default.SignalCellularAlt, "Data", tint = statusIconColor, modifier = Modifier.size(16.dp))
+                }
+                if (isLandscape) {
+                    Spacer(Modifier.width(8.dp))
+                    if (editMode) {
+                        IconButton(
+                            onClick  = { widgetLibraryOpen = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector        = Icons.Default.Dashboard,
+                                contentDescription = "Widget library",
+                                tint               = controlIconColor,
+                                modifier           = Modifier.size(15.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(2.dp))
+                    }
                     IconButton(
-                        onClick  = { widgetLibraryOpen = true },
+                        onClick  = { editMode = !editMode },
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
-                            imageVector        = Icons.Default.Dashboard,
-                            contentDescription = "Widget library",
-                            tint               = controlIconColor,
+                            imageVector        = Icons.Default.Edit,
+                            contentDescription = "Edit widgets",
+                            tint               = if (editMode) accent else controlIconColor,
                             modifier           = Modifier.size(15.dp)
                         )
                     }
-                    Spacer(Modifier.width(2.dp))
-                }
-                IconButton(
-                    onClick  = { editMode = !editMode },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector        = Icons.Default.Edit,
-                        contentDescription = "Edit widgets",
-                        tint               = if (editMode) accent else controlIconColor,
-                        modifier           = Modifier.size(15.dp)
-                    )
                 }
             }
-        }
 
-        HorizontalDivider(color = if (isDayMode) Color(0xFFCCCCCC) else Color(0xFF141414))
+            HorizontalDivider(color = if (isDayMode) Color(0xFFCCCCCC) else Color(0xFF141414))
+        }
 
         // ── Widget Grid ─────────────────────────────────────────────────────
         BoxWithConstraints(
@@ -243,6 +256,7 @@ fun HomeScreen(
                 if (settings.showVitals) add("VITALS")
                 if (settings.showTripTracker) add("TRIP_TRACKER")
                 if (settings.showSoundboard) add("SOUNDBOARD")
+                if (settings.showPip) add("PIP")
             }
 
             // Keep only visible widgets exactly as configured in settings, allowing explicit resizing to dictate layout
@@ -318,6 +332,7 @@ fun HomeScreen(
                     "SPEEDOMETER" -> "SPEED"
                     "TRIP_TRACKER" -> "TRIP"
                     "SOUNDBOARD"  -> "SOUND"
+                    "PIP"         -> "PIP"
                     else          -> w.id
                 }
 
@@ -327,6 +342,7 @@ fun HomeScreen(
                 // Weather with no data reserves its cell but draws nothing
                 // (still visible in edit mode so it can be moved/removed)
                 val isGhost    = w.id == "WEATHER" && weather == null && !editMode
+                val isPip      = w.id == "PIP"
                 val dragDpX    = if (isDragging) with(density) { dragOffsetPx.x.toDp() } else 0.dp
                 val dragDpY    = if (isDragging) with(density) { dragOffsetPx.y.toDp() } else 0.dp
 
@@ -337,10 +353,11 @@ fun HomeScreen(
                         .size(width, height)
                         .zIndex(if (isDragging) 1f else 0f)
                         .clip(WIDGET_RADIUS)
-                        .background(if (isGhost) Color.Transparent else widgetBg)
+                        .background(if (isGhost || isPip) Color.Transparent else widgetBg)
                         .border(
                             width = if (editMode) 1.5.dp else 1.dp,
                             color = when {
+                                isPip    -> Color.Transparent
                                 editMode -> accent.copy(alpha = 0.45f)
                                 isGhost  -> Color.Transparent
                                 else     -> widgetBorder
@@ -474,11 +491,29 @@ fun HomeScreen(
                             onUpdatePad = onUpdateSoundPad,
                             modifier  = Modifier.fillMaxSize()
                         )
+                        "PIP" -> PipWidget(
+                            packageNames  = settings.pipAppPackages,
+                            appCount      = settings.pipAppCount,
+                            splitFraction = settings.pipPaneSplit,
+                            accent        = accent,
+                            launcherBackground = launcherBackground,
+                            isDayMode     = isDayMode,
+                            isActive      = isActive,
+                            isEditing     = editMode,
+                            onAssign      = onAssignPip,
+                            onSplitChange = onSetPipSplit,
+                            onSwap        = onSwapPipApps,
+                            panesReversed = settings.pipPanesReversed,
+                            modifier      = Modifier.fillMaxSize()
+                        )
                     }
 
-                    // Label — hide when album art fills the widget background
+                    // Label — hide when album art fills the widget background,
+                    // and always for PIP (the embedded apps' own UI already
+                    // fills the tile; a "PIP" caption in the corner is just noise).
                     val labelColor = when {
                         isGhost -> Color.Transparent
+                        isPip -> Color.Transparent
                         w.id == "NOW_PLAYING" && nowPlaying?.albumArt != null && nowPlaying.title.isNotEmpty() -> Color.Transparent
                         isDayMode -> Color(0xFF999999)
                         else      -> Color(0xFF3A3A3A)
@@ -508,15 +543,17 @@ fun HomeScreen(
             speedometerDigitalOnly = settings.speedometerDigitalOnly,
             carPlayPackage      = settings.carPlayPackage,
             androidAutoPackage  = settings.androidAutoPackage,
-            pipAppPackage       = settings.pipAppPackage,
+            pipAppPackages      = settings.pipAppPackages,
+            pipAppCount         = settings.pipAppCount,
             isDayMode           = isDayMode,
             onResize            = { contextMenuId = null; resizingId = id },
             onAssignCarPlay     = { contextMenuId = null; onAssignCarPlay() },
             onAssignAndroidAuto = { contextMenuId = null; onAssignAndroidAuto() },
             onClearCarPlay      = { contextMenuId = null; onClearCarPlay() },
             onClearAndroidAuto  = { contextMenuId = null; onClearAndroidAuto() },
-            onAssignPip         = { contextMenuId = null; onAssignPip() },
-            onClearPip          = { contextMenuId = null; onClearPip() },
+            onAssignPip         = { slot -> contextMenuId = null; onAssignPip(slot) },
+            onClearPip          = { slot -> contextMenuId = null; onClearPip(slot) },
+            onSetPipAppCount    = { onSetPipAppCount(it) },
             onSetClockStyle     = { onSetClockStyle(it) },
             onSetVitalsAsBars   = { onSetVitalsAsBars(it) },
             onSetSpeedometerDigitalOnly = { onSetSpeedometerDigitalOnly(it) },
@@ -563,15 +600,17 @@ private fun WidgetContextMenu(
     speedometerDigitalOnly: Boolean,
     carPlayPackage: String = "",
     androidAutoPackage: String = "",
-    pipAppPackage: String = "",
+    pipAppPackages: List<String> = listOf("", ""),
+    pipAppCount: Int = 1,
     isDayMode: Boolean,
     onResize: () -> Unit,
     onAssignCarPlay: () -> Unit,
     onAssignAndroidAuto: () -> Unit,
     onClearCarPlay: () -> Unit,
     onClearAndroidAuto: () -> Unit,
-    onAssignPip: () -> Unit,
-    onClearPip: () -> Unit,
+    onAssignPip: (slot: Int) -> Unit,
+    onClearPip: (slot: Int) -> Unit,
+    onSetPipAppCount: (Int) -> Unit,
     onSetClockStyle: (ClockStyle) -> Unit,
     onSetVitalsAsBars: (Boolean) -> Unit,
     onSetSpeedometerDigitalOnly: (Boolean) -> Unit,
@@ -657,6 +696,38 @@ private fun WidgetContextMenu(
                 if (androidAutoPackage.isNotEmpty()) {
                     HorizontalDivider(color = menuDivider)
                     ContextRow("CLEAR ANDROID AUTO APP", Icons.Default.DirectionsCar, Color(0xFF884444), onClearAndroidAuto, isDayMode = isDayMode)
+                }
+            }
+            if (widgetId == "PIP") {
+                HorizontalDivider(color = menuDivider)
+                ContextRow(
+                    label   = "1 APP",
+                    icon    = Icons.Default.PictureInPicture,
+                    tint    = if (pipAppCount == 1) accent else inactiveMenuTint,
+                    onClick = { onSetPipAppCount(1) },
+                    isDayMode = isDayMode
+                )
+                HorizontalDivider(color = menuDivider)
+                ContextRow(
+                    label   = "2 APPS",
+                    icon    = Icons.Default.PictureInPicture,
+                    tint    = if (pipAppCount == 2) accent else inactiveMenuTint,
+                    onClick = { onSetPipAppCount(2) },
+                    isDayMode = isDayMode
+                )
+                HorizontalDivider(color = menuDivider)
+                ContextRow("ASSIGN PIP APP 1", Icons.Default.PictureInPicture, accent, { onAssignPip(0) }, isDayMode = isDayMode)
+                if (pipAppPackages.getOrElse(0) { "" }.isNotEmpty()) {
+                    HorizontalDivider(color = menuDivider)
+                    ContextRow("CLEAR PIP APP 1", Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(0) }, isDayMode = isDayMode)
+                }
+                if (pipAppCount == 2) {
+                    HorizontalDivider(color = menuDivider)
+                    ContextRow("ASSIGN PIP APP 2", Icons.Default.PictureInPicture, accent, { onAssignPip(1) }, isDayMode = isDayMode)
+                    if (pipAppPackages.getOrElse(1) { "" }.isNotEmpty()) {
+                        HorizontalDivider(color = menuDivider)
+                        ContextRow("CLEAR PIP APP 2", Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(1) }, isDayMode = isDayMode)
+                    }
                 }
             }
 
@@ -839,6 +910,7 @@ private fun WidgetLibraryDialog(
         if (settings.showVitals) add("VITALS")
         if (settings.showTripTracker) add("TRIP_TRACKER")
         if (settings.showSoundboard) add("SOUNDBOARD")
+        if (settings.showPip) add("PIP")
     }
     val canAdd = canAddWidget(settings)
 

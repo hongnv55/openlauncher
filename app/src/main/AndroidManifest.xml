@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:sharedUserId="${sharedUserId}">
 
     <!-- Network for weather API -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -29,6 +30,17 @@
     <!-- Query all packages required on API 30+ for getInstalledApplications -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
+    <!-- ActivityView.initVirtualDisplay() needs this to register its input forwarder
+         (SecurityException otherwise) — signature|privileged, so it only actually
+         gets granted on the platform-signed PIP build (adb pm grant / root on a
+         userdebug device is not enough by itself, but must be declared here first). -->
+    <uses-permission android:name="android.permission.INJECT_EVENTS" />
+    <uses-permission android:name="android.permission.STATUS_BAR" />
+
+    <!-- Keeps each embedded VirtualDisplay in the pane's fixed orientation so
+         an app orientation request cannot leave stale, transposed app bounds. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <!-- Required on API 30+ so PackageManager returns ALL launcher apps -->
     <queries>
         <intent>
@@ -43,6 +55,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:hardwareAccelerated="true"
+        android:persistent="true"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
         android:exported="true">
 

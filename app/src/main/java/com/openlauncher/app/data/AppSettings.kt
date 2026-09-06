@@ -74,10 +74,10 @@ data class AppSettings(
     val clockStyle: ClockStyle = ClockStyle.DIGITAL,
     val unitSystem: UnitSystem = UnitSystem.METRIC,
     val appFont: AppFont = AppFont.JETBRAINS_MONO,
-    val showWeather: Boolean = true,
-    val showClock: Boolean = true,
-    val showTelemetry: Boolean = true,
-    val showNowPlaying: Boolean = true,
+    val showWeather: Boolean = false,
+    val showClock: Boolean = false,
+    val showTelemetry: Boolean = false,
+    val showNowPlaying: Boolean = false,
     val shortcuts: List<ShortcutConfig> = defaultShortcuts(),
     val widgetLayout: List<WidgetConfig> = defaultWidgetLayout(),
     val carPlayPackage: String = "",
@@ -89,9 +89,18 @@ data class AppSettings(
     val bottomBarShortcutsRight: Boolean = false,
     val showAltimeter: Boolean = false,
     val showSpeedometer: Boolean = false,
-    val dayNightMode: DayNightMode = DayNightMode.DARK,
-    val showPip: Boolean = false,
-    val pipAppPackage: String = "",
+    val dayNightMode: DayNightMode = DayNightMode.LIGHT,
+    val showPip: Boolean = true,
+    // Up to 2 apps shown side-by-side in the PIP widget ("" = slot unassigned)
+    val pipAppPackages: List<String> = listOf("", ""),
+    // Fraction of the pane area (excluding the divider) given to slot 0
+    val pipPaneSplit: Float = 0.5f,
+    // How many of pipAppPackages are actually shown (1 = slot 0 fills the widget, 2 = split view)
+    val pipAppCount: Int = 1,
+    // Which side each PIP slot renders on — purely a display arrangement,
+    // independent of pipAppPackages, so tapping the divider grip to swap
+    // sides never touches slot identity and never reloads either app
+    val pipPanesReversed: Boolean = false,
     // Head unit's radio app — mirrored & controlled via its MediaSession
     val radioPackage: String = "",
     val onboardingCompleted: Boolean = false,
@@ -103,21 +112,20 @@ data class AppSettings(
     val vitalsAsBars: Boolean = false,
     val speedometerDigitalOnly: Boolean = false,
     val gradientDirection: GradientDirection = GradientDirection.DIAGONAL,
-    val useCustomBackgroundColor: Boolean = false
+    val useCustomBackgroundColor: Boolean = false,
+    // In-app header row (vehicle name, wifi/data icons, edit-widgets button) —
+    // distinct from the two below, which are the real Android system bars.
+    val hideAppHeader: Boolean = true,
+    val hideSystemStatusBar: Boolean = true,
+    val hideSystemNavBar: Boolean = true
 )
 
 fun defaultShortcuts() = listOf(
-    ShortcutConfig(label = "Radio", isDefault = true, defaultIcon = DefaultShortcutIcon.RADIO),
-    ShortcutConfig(label = "Camera", isDefault = true, defaultIcon = DefaultShortcutIcon.CAMERA),
-    ShortcutConfig(label = "Music", isDefault = true, defaultIcon = DefaultShortcutIcon.MUSIC),
-    ShortcutConfig(label = "Phone", isDefault = true, defaultIcon = DefaultShortcutIcon.PHONE)
+    ShortcutConfig()
 )
 
 fun defaultWidgetLayout() = listOf(
-    WidgetConfig("CLOCK",       gridX = 0, gridY = 0, spanX = 1, spanY = 1),
-    WidgetConfig("WEATHER",     gridX = 1, gridY = 0, spanX = 1, spanY = 1),
-    WidgetConfig("TELEMETRY",   gridX = 2, gridY = 0, spanX = 1, spanY = 2),
-    WidgetConfig("NOW_PLAYING", gridX = 0, gridY = 1, spanX = 2, spanY = 1)
+    WidgetConfig("PIP", gridX = 0, gridY = 0, spanX = GRID_COLS, spanY = GRID_ROWS)
 )
 
 fun AppSettings.activeWidgetIds(): Set<String> = buildSet {
@@ -130,6 +138,7 @@ fun AppSettings.activeWidgetIds(): Set<String> = buildSet {
     if (showVitals) add("VITALS")
     if (showTripTracker) add("TRIP_TRACKER")
     if (showSoundboard) add("SOUNDBOARD")
+    if (showPip) add("PIP")
 }
 
 /**

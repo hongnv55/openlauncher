@@ -15,11 +15,22 @@ android {
         targetSdk      = 36
         versionCode    = 6
         versionName    = "0.0.5"
+        manifestPlaceholders["sharedUserId"] = ""
     }
 
     buildTypes {
         debug {
             // Default signing config for normal device testing (restores app visibility)
+            manifestPlaceholders["sharedUserId"] = ""
+        }
+        // PiP beta build: joins android.uid.system so the reflective ActivityView /
+        // freeform-windowing calls in PipWidget pass platform hidden-API + signature-permission
+        // checks. Must be re-signed with the device's platform key post-build (see
+        // .claude/keys/sign.sh) — gradle's own signing is irrelevant since apksigner replaces it.
+        create("aospDebug") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
+            manifestPlaceholders["sharedUserId"] = "android.uid.system"
         }
         release {
             isMinifyEnabled = false
@@ -27,6 +38,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            manifestPlaceholders["sharedUserId"] = ""
         }
     }
 
@@ -79,4 +91,11 @@ dependencies {
     implementation("com.google.code.gson:gson:2.13.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Compile-time-only declaration for android.app.TaskStackListener (@hide on
+    // the public android.jar). Built by scripts/build-framework-stubs.sh from
+    // framework-stubs/src; never packaged into the APK — at runtime this
+    // resolves against the real hidden class in the device's boot image. See
+    // TaskEmbedder in PipWidget.kt for the only place this is used.
+    compileOnly(files("libs/framework-stubs.jar"))
 }

@@ -46,11 +46,14 @@ fun SettingsScreen(
     settings: AppSettings,
     accent: Color,
     onUpdate: (AppSettings.() -> AppSettings) -> Unit,
+    onAssignPip: (slot: Int) -> Unit,
     onReset: () -> Unit,
+    onRestartLauncher: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showResetDialog       by remember { mutableStateOf(false) }
+    var showRestartDialog     by remember { mutableStateOf(false) }
     var showAccentPicker      by remember { mutableStateOf(false) }
     var showBgPicker          by remember { mutableStateOf(false) }
     var showGradientEndPicker by remember { mutableStateOf(false) }
@@ -376,6 +379,81 @@ fun SettingsScreen(
                 icon     = Icons.Default.Add,
                 accent   = accent,
                 onClick  = { onUpdate { copy(shortcuts = shortcuts + ShortcutConfig()) } }
+            )
+        }
+
+        // ── Status & Navigation ──────────────────────────────────────────────
+        SettingsSection("Status & Navigation") {
+            SettingsRow(
+                label    = "Hide Status Bar",
+                sublabel = "This app's own header row — vehicle name, wifi/data icons, edit button",
+                icon     = Icons.Default.ViewHeadline
+            ) {
+                Switch(
+                    checked         = settings.hideAppHeader,
+                    onCheckedChange = { onUpdate { copy(hideAppHeader = it) } },
+                    colors          = switchColors(accent)
+                )
+            }
+
+            SettingsDivider()
+
+            SettingsRow(
+                label    = "Hide System Status Bar",
+                sublabel = "Android's own status bar — when shown, content makes room for it",
+                icon     = Icons.Default.SignalCellularAlt
+            ) {
+                Switch(
+                    checked         = settings.hideSystemStatusBar,
+                    onCheckedChange = { onUpdate { copy(hideSystemStatusBar = it) } },
+                    colors          = switchColors(accent)
+                )
+            }
+
+            SettingsDivider()
+
+            SettingsRow(
+                label    = "Hide System Navigation Bar",
+                sublabel = "Android's own navigation bar",
+                icon     = Icons.Default.Web
+            ) {
+                Switch(
+                    checked         = settings.hideSystemNavBar,
+                    onCheckedChange = { onUpdate { copy(hideSystemNavBar = it) } },
+                    colors          = switchColors(accent)
+                )
+            }
+        }
+
+        // ── Picture-in-Picture ───────────────────────────────────────────────
+        SettingsSection("Picture-in-Picture") {
+            fun appLabel(packageName: String): String {
+                if (packageName.isEmpty()) return "Not configured — tap to select an application"
+                return runCatching {
+                    val info = context.packageManager.getApplicationInfo(packageName, 0)
+                    context.packageManager.getApplicationLabel(info).toString()
+                }.getOrDefault(packageName)
+            }
+
+            val firstPackage = settings.pipAppPackages.getOrElse(0) { "" }
+            val secondPackage = settings.pipAppPackages.getOrElse(1) { "" }
+
+            SettingsButton(
+                label = "First PiP",
+                sublabel = appLabel(firstPackage),
+                icon = Icons.Default.PictureInPicture,
+                accent = accent,
+                onClick = { onAssignPip(0) }
+            )
+
+            SettingsDivider()
+
+            SettingsButton(
+                label = "Second PiP",
+                sublabel = appLabel(secondPackage),
+                icon = Icons.Default.PictureInPictureAlt,
+                accent = accent,
+                onClick = { onAssignPip(1) }
             )
         }
 
@@ -763,6 +841,17 @@ fun SettingsScreen(
         SettingsSection("Maintenance") {
             Spacer(Modifier.height(8.dp))
             Button(
+                onClick  = { showRestartDialog = true },
+                shape    = RoundedCornerShape(4.dp),
+                colors   = ButtonDefaults.buttonColors(containerColor = if (isDayMode) Color(0xFFE8E8E8) else Color(0xFF1A1A1A)),
+                modifier = Modifier.fillMaxWidth().height(44.dp)
+            ) {
+                Icon(Icons.Default.Refresh, null, tint = accent, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Restart Launcher", color = accent, fontSize = 13.sp, letterSpacing = 1.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            Button(
                 onClick  = { showResetDialog = true },
                 shape    = RoundedCornerShape(4.dp),
                 colors   = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A0000)),
@@ -797,6 +886,19 @@ fun SettingsScreen(
             confirmLabel = "Reset",
             onConfirm    = { onReset(); showResetDialog = false },
             onDismiss    = { showResetDialog = false }
+        )
+    }
+
+    if (showRestartDialog) {
+        ConfirmDialog(
+            title        = "Restart Launcher",
+            message      = "Restart now to refresh everything back to a cold-start state? Any embedded PIP apps will relaunch.",
+            confirmLabel = "Restart",
+            onConfirm    = {
+                showRestartDialog = false
+                onRestartLauncher()
+            },
+            onDismiss    = { showRestartDialog = false }
         )
     }
 

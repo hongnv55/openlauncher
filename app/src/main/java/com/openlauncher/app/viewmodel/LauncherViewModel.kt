@@ -120,6 +120,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val carPlayPickerActive: StateFlow<Boolean> = MutableStateFlow(false) // kept for compat
     val appPickerTarget: StateFlow<AppPickerTarget?> = _appPickerTarget
 
+    // Which PIP pane (0 or 1) the app picker is currently assigning into
+    private var pipPickerSlot = 0
+    private var pickerReturnDestination = NavDestination.HOME
+
     fun startCarPlayPicker() {
         _appPickerTarget.value = AppPickerTarget.CARPLAY
         _nav.value = NavDestination.APP_LIBRARY
@@ -130,7 +134,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _nav.value = NavDestination.APP_LIBRARY
     }
 
-    fun startPipPicker() {
+    fun startPipPicker(slot: Int, returnDestination: NavDestination = NavDestination.HOME) {
+        pipPickerSlot = slot
+        pickerReturnDestination = returnDestination
         _appPickerTarget.value = AppPickerTarget.PIP
         _nav.value = NavDestination.APP_LIBRARY
     }
@@ -144,17 +150,36 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         when (_appPickerTarget.value) {
             AppPickerTarget.CARPLAY      -> updateSettings { copy(carPlayPackage = app.packageName) }
             AppPickerTarget.ANDROID_AUTO -> updateSettings { copy(androidAutoPackage = app.packageName) }
-            AppPickerTarget.PIP          -> updateSettings { copy(pipAppPackage = app.packageName) }
+            AppPickerTarget.PIP          -> updateSettings {
+                copy(pipAppPackages = pipAppPackages.toMutableList().also { list ->
+                    while (list.size <= pipPickerSlot) list.add("")
+                    list[pipPickerSlot] = app.packageName
+                }, pipAppCount = maxOf(pipAppCount, pipPickerSlot + 1))
+            }
             AppPickerTarget.RADIO        -> updateSettings { copy(radioPackage = app.packageName) }
             null -> {}
         }
         _appPickerTarget.value = null
-        _nav.value = NavDestination.HOME
+        _nav.value = pickerReturnDestination
+        pickerReturnDestination = NavDestination.HOME
     }
 
     fun clearCarPlayApp()      { updateSettings { copy(carPlayPackage = "") } }
     fun clearAndroidAutoApp()  { updateSettings { copy(androidAutoPackage = "") } }
-    fun clearPipApp()          { updateSettings { copy(pipAppPackage = "") } }
+    fun clearPipApp(slot: Int) {
+        updateSettings {
+            copy(pipAppPackages = pipAppPackages.toMutableList().also { list ->
+                while (list.size <= slot) list.add("")
+                list[slot] = ""
+            })
+        }
+    }
+    fun setPipSplit(fraction: Float) { updateSettings { copy(pipPaneSplit = fraction.coerceIn(0.15f, 0.85f)) } }
+    fun setPipAppCount(count: Int)   { updateSettings { copy(pipAppCount = count.coerceIn(1, 2)) } }
+    // A pure display-arrangement flip — which slot renders left vs right —
+    // not a reassignment, so neither embedded app reloads (see PipWidget's
+    // fixed slot0/slot1 declaration order, swapped only via offset/width).
+    fun swapPipApps() { updateSettings { copy(pipPanesReversed = !pipPanesReversed) } }
     fun clearRadioApp()        { updateSettings { copy(radioPackage = "") } }
 
     fun updateWidgetConfig(id: String, spanX: Int, spanY: Int) {
@@ -219,6 +244,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 "VITALS"      -> copy(showVitals = true)
                 "TRIP_TRACKER" -> copy(showTripTracker = true)
                 "SOUNDBOARD"  -> copy(showSoundboard = true)
+                "PIP"         -> copy(showPip = true)
                 else          -> this
             }
             val idx       = layout.indexOfFirst { it.id == id }
@@ -250,6 +276,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 "VITALS"      -> copy(showVitals = false)
                 "TRIP_TRACKER" -> copy(showTripTracker = false)
                 "SOUNDBOARD"  -> copy(showSoundboard = false)
+                "PIP"         -> copy(showPip = false)
                 else          -> this
             }
         }

@@ -47,7 +47,10 @@ class SettingsRepository(private val context: Context) {
         val BOTTOM_BAR_SHORTCUTS_RIGHT = booleanPreferencesKey("bottom_bar_shortcuts_right")
         val DAY_NIGHT_MODE        = stringPreferencesKey("day_night_mode")
         val SHOW_PIP              = booleanPreferencesKey("show_pip")
-        val PIP_APP_PACKAGE       = stringPreferencesKey("pip_app_package")
+        val PIP_APP_PACKAGES_JSON = stringPreferencesKey("pip_app_packages_json")
+        val PIP_PANE_SPLIT        = floatPreferencesKey("pip_pane_split")
+        val PIP_APP_COUNT         = intPreferencesKey("pip_app_count")
+        val PIP_PANES_REVERSED    = booleanPreferencesKey("pip_panes_reversed")
         val RADIO_PACKAGE         = stringPreferencesKey("radio_package")
         val ONBOARDING_COMPLETED  = booleanPreferencesKey("onboarding_completed")
         val SHOW_VITALS           = booleanPreferencesKey("show_vitals")
@@ -59,6 +62,9 @@ class SettingsRepository(private val context: Context) {
         val SPEEDOMETER_DIGITAL_ONLY = booleanPreferencesKey("speedometer_digital_only")
         val GRADIENT_DIRECTION    = stringPreferencesKey("gradient_direction")
         val USE_CUSTOM_BG_COLOR   = booleanPreferencesKey("use_custom_bg_color")
+        val HIDE_APP_HEADER        = booleanPreferencesKey("hide_app_header")
+        val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
+        val HIDE_SYSTEM_NAV_BAR    = booleanPreferencesKey("hide_system_nav_bar")
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
@@ -119,7 +125,14 @@ class SettingsRepository(private val context: Context) {
                 bottomBarShortcutsRight = prefs[Keys.BOTTOM_BAR_SHORTCUTS_RIGHT] ?: defaults.bottomBarShortcutsRight,
                 dayNightMode     = prefs[Keys.DAY_NIGHT_MODE]?.let { runCatching { DayNightMode.valueOf(it) }.getOrNull() } ?: defaults.dayNightMode,
                 showPip          = prefs[Keys.SHOW_PIP]         ?: defaults.showPip,
-                pipAppPackage    = prefs[Keys.PIP_APP_PACKAGE]  ?: defaults.pipAppPackage,
+                pipAppPackages   = prefs[Keys.PIP_APP_PACKAGES_JSON]?.let {
+                    runCatching {
+                        gson.fromJson<List<String>>(it, object : TypeToken<List<String>>() {}.type)
+                    }.getOrNull()
+                } ?: defaults.pipAppPackages,
+                pipPaneSplit     = prefs[Keys.PIP_PANE_SPLIT]    ?: defaults.pipPaneSplit,
+                pipAppCount      = prefs[Keys.PIP_APP_COUNT]     ?: defaults.pipAppCount,
+                pipPanesReversed = prefs[Keys.PIP_PANES_REVERSED] ?: defaults.pipPanesReversed,
                 radioPackage     = prefs[Keys.RADIO_PACKAGE]    ?: defaults.radioPackage,
                 onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: defaults.onboardingCompleted,
                 showVitals       = prefs[Keys.SHOW_VITALS]      ?: defaults.showVitals,
@@ -134,7 +147,10 @@ class SettingsRepository(private val context: Context) {
                 vitalsAsBars     = prefs[Keys.VITALS_AS_BARS] ?: defaults.vitalsAsBars,
                 speedometerDigitalOnly = prefs[Keys.SPEEDOMETER_DIGITAL_ONLY] ?: defaults.speedometerDigitalOnly,
                 gradientDirection = prefs[Keys.GRADIENT_DIRECTION]?.let { runCatching { GradientDirection.valueOf(it) }.getOrNull() } ?: defaults.gradientDirection,
-                useCustomBackgroundColor = prefs[Keys.USE_CUSTOM_BG_COLOR] ?: defaults.useCustomBackgroundColor
+                useCustomBackgroundColor = prefs[Keys.USE_CUSTOM_BG_COLOR] ?: defaults.useCustomBackgroundColor,
+                hideAppHeader        = prefs[Keys.HIDE_APP_HEADER]        ?: defaults.hideAppHeader,
+                hideSystemStatusBar  = prefs[Keys.HIDE_SYSTEM_STATUS_BAR] ?: defaults.hideSystemStatusBar,
+                hideSystemNavBar     = prefs[Keys.HIDE_SYSTEM_NAV_BAR]    ?: defaults.hideSystemNavBar
             )
     }
 
@@ -179,7 +195,10 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.BOTTOM_BAR_SHORTCUTS_RIGHT] = s.bottomBarShortcutsRight
             prefs[Keys.DAY_NIGHT_MODE]     = s.dayNightMode.name
             prefs[Keys.SHOW_PIP]           = s.showPip
-            prefs[Keys.PIP_APP_PACKAGE]    = s.pipAppPackage
+            prefs[Keys.PIP_APP_PACKAGES_JSON] = gson.toJson(s.pipAppPackages)
+            prefs[Keys.PIP_PANE_SPLIT]     = s.pipPaneSplit
+            prefs[Keys.PIP_APP_COUNT]      = s.pipAppCount
+            prefs[Keys.PIP_PANES_REVERSED] = s.pipPanesReversed
             prefs[Keys.RADIO_PACKAGE]      = s.radioPackage
             prefs[Keys.ONBOARDING_COMPLETED] = s.onboardingCompleted
             prefs[Keys.SHOW_VITALS]        = s.showVitals
@@ -191,6 +210,9 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.SPEEDOMETER_DIGITAL_ONLY] = s.speedometerDigitalOnly
             prefs[Keys.GRADIENT_DIRECTION] = s.gradientDirection.name
             prefs[Keys.USE_CUSTOM_BG_COLOR] = s.useCustomBackgroundColor
+            prefs[Keys.HIDE_APP_HEADER]        = s.hideAppHeader
+            prefs[Keys.HIDE_SYSTEM_STATUS_BAR] = s.hideSystemStatusBar
+            prefs[Keys.HIDE_SYSTEM_NAV_BAR]    = s.hideSystemNavBar
     }
 
     suspend fun resetToDefaults() {

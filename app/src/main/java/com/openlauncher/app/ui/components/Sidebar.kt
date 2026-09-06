@@ -42,7 +42,7 @@ import com.openlauncher.app.model.NavDestination
 import com.openlauncher.app.ui.theme.LocalDayMode
 import kotlin.math.roundToInt
 
-private val ICON_SIZE   = 22.dp
+private val ICON_SIZE   = 30.dp
 private val SLOT_SIZE   = 52.dp
 
 @Composable
@@ -341,12 +341,12 @@ private fun ShortcutSlot(
             resolvedIcon != null -> {
                 // Cache per icon — every slot recomposes each drag frame, and an
                 // un-remembered toBitmap allocated a fresh bitmap per slot per frame
-                val bmp = remember(resolvedIcon) { resolvedIcon.toBitmap(44, 44) }
+                val bmp = remember(resolvedIcon) { resolvedIcon.toBitmap(60, 60) }
                 Icon(
                     painter            = BitmapPainter(bmp.asImageBitmap()),
                     contentDescription = shortcut.label,
                     tint               = Color.Unspecified,
-                    modifier           = Modifier.size(26.dp)
+                    modifier           = Modifier.size(34.dp)
                 )
             }
             shortcut.isDefault -> {
