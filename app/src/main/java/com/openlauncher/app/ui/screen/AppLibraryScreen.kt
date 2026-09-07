@@ -33,7 +33,9 @@ import com.openlauncher.app.ui.theme.LocalDayMode
 
 private enum class AppFilter { USER, SYSTEM, ALL }
 
-private val TILE_RADIUS = RoundedCornerShape(4.dp)
+// Matches WIDGET_RADIUS/SIDEBAR_RADIUS — one shared corner-radius language
+// across Home's sidebar/PIP panel and the App Library grid.
+private val TILE_RADIUS = RoundedCornerShape(12.dp)
 
 @Composable
 fun AppLibraryScreen(
@@ -247,7 +249,7 @@ private fun AppTile(
                 Text(app.appName.take(1).uppercase(), color = accent, fontSize = 18.sp)
             }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(10.dp))
         Text(
             text          = app.appName.uppercase(),
             style         = MaterialTheme.typography.labelSmall,
