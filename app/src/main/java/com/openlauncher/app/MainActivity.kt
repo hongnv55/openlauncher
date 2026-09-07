@@ -254,7 +254,6 @@ class MainActivity : ComponentActivity() {
                         }
 
                         val isBottomBar    = settings.sidebarPosition == SidebarPosition.BOTTOM
-                        val layoutDivColor = if (isDayMode) Color(0xFFCCCCCC) else Color(0xFF1A1A1A)
 
                         val sidebarContent: @Composable () -> Unit = {
                             val sidebarDensity = Density(
@@ -390,28 +389,31 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
+                        // Sidebar sits with a gap from the true window edge —
+                        // not from the content pane, which already has its
+                        // own margin from the widget-grid's own `gap` padding
+                        // — so the sidebar reads as a floating element too,
+                        // consistent with the rounded/floating PIP panel.
+                        // No hard divider line between sidebar and content —
+                        // just the matching gap on both sides of it, same
+                        // language as the sidebar's own margin from the
+                        // window edge, so all three gaps read as equal.
                         if (isBottomBar) {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 mainPane(Modifier.weight(1f).fillMaxWidth())
-                                androidx.compose.material3.HorizontalDivider(color = layoutDivColor)
                                 sidebarContent()
+                                Spacer(Modifier.height(10.dp))
                             }
                         } else {
                             Row(modifier = Modifier.fillMaxSize()) {
-                                val vDivider: @Composable () -> Unit = {
-                                    androidx.compose.material3.VerticalDivider(
-                                        modifier = Modifier.fillMaxHeight(),
-                                        color    = layoutDivColor
-                                    )
-                                }
                                 if (settings.sidebarPosition == SidebarPosition.LEFT) {
+                                    Spacer(Modifier.width(10.dp))
                                     sidebarContent()
-                                    vDivider()
                                 }
                                 mainPane(Modifier.weight(1f).fillMaxHeight())
                                 if (settings.sidebarPosition == SidebarPosition.RIGHT) {
-                                    vDivider()
                                     sidebarContent()
+                                    Spacer(Modifier.width(10.dp))
                                 }
                             }
                         }

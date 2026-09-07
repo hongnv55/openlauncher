@@ -65,10 +65,8 @@ import kotlinx.coroutines.launch
 private val PANE_SPLIT_RANGE = 0.15f..0.85f
 private val DIVIDER_LAYOUT_WIDTH = 10.dp
 private val DIVIDER_TOUCH_WIDTH = 24.dp
-private val DIVIDER_GRIP_WIDTH = 6.dp
-private val DIVIDER_GRIP_HEIGHT = 56.dp
-private val DIVIDER_GRIP_HALO_WIDTH = 16.dp
-private val DIVIDER_GRIP_HALO_HEIGHT = 68.dp
+private val DIVIDER_GRIP_WIDTH = 4.dp
+private val DIVIDER_GRIP_HEIGHT = 200.dp
 private val PIP_PANE_SHAPE = RoundedCornerShape(10.dp)
 private val PIP_PANE_BORDER_WIDTH = 1.5.dp
 private const val DIVIDER_INPUT_SETTLE_MS = 180L
@@ -252,19 +250,14 @@ fun PipWidget(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                // Soft accent-tinted halo, wider than the grip itself, so the
-                // draggable zone reads as its own control at a glance rather
-                // than a plain divider line.
-                Box(
-                    Modifier
-                        .width(DIVIDER_GRIP_HALO_WIDTH)
-                        .height(DIVIDER_GRIP_HALO_HEIGHT)
-                        .clip(RoundedCornerShape(DIVIDER_GRIP_HALO_WIDTH / 2))
-                        .background(if (previewFraction != null) Color.Transparent else accent.copy(alpha = 0.14f))
-                )
-                // One even, bright tone — same idea as the pane border — rather
-                // than a fade that reads as dirty/uneven at this size.
-                val gripColor = lerp(Color.White, accent, 0.15f)
+                // Derived from the launcher's own background — same idea as
+                // the sidebar — rather than a fixed white base, so it stays
+                // in the same palette as whatever background the user picks.
+                // Needs a much stronger accent mix than the sidebar's tint
+                // though: unlike the sidebar (a large area, tone alone reads
+                // fine), this is a tiny 6dp-wide handle that has to read as
+                // "grab this" at a glance, not just as a subtly-shaded area.
+                val gripColor = lerp(launcherBackground, accent, 0.5f)
                 Box(
                     Modifier
                         .width(DIVIDER_GRIP_WIDTH)

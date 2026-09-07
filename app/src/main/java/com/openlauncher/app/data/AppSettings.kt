@@ -65,7 +65,10 @@ data class WidgetConfig(
 data class AppSettings(
     val vehicleName: String = "MY CAR",
     val accentColor: Int = Color(0xFF32FAA9).toArgb(),
-    val backgroundColor: Int = Color(0xFFECEEF4).toArgb(),
+    // Deliberately a shade darker than typical white/light app chrome (not
+    // near-white like before) so the gap+border frame around PIP panes in
+    // HomeScreen actually reads as a frame instead of blending into it
+    val backgroundColor: Int = Color(0xFFC7CCD6).toArgb(),
     val fontColor: Int = Color.White.toArgb(),
     val wallpaperUri: String = "",
     val fontBold: Boolean = false,

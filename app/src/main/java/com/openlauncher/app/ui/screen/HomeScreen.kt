@@ -46,7 +46,7 @@ import com.openlauncher.app.ui.widget.*
 import java.util.Calendar
 import com.openlauncher.app.util.LocationData
 
-private val WIDGET_RADIUS = RoundedCornerShape(0.dp)
+private val WIDGET_RADIUS = RoundedCornerShape(12.dp)
 
 private data class WidgetTypeInfo(
     val id: String,
@@ -141,7 +141,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val accent       = Color(settings.accentColor)
-    val gap          = 6.dp
+    val gap          = 10.dp
     val hasWallpaper = settings.wallpaperUri.isNotEmpty()
     val widgetBg     = when {
         isDayMode    -> Color(0xFFFFFFFF)
@@ -357,8 +357,8 @@ fun HomeScreen(
                         .border(
                             width = if (editMode) 1.5.dp else 1.dp,
                             color = when {
-                                isPip    -> Color.Transparent
                                 editMode -> accent.copy(alpha = 0.45f)
+                                isPip    -> Color.Transparent
                                 isGhost  -> Color.Transparent
                                 else     -> widgetBorder
                             },

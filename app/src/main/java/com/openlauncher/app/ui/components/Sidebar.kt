@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -44,6 +45,9 @@ import kotlin.math.roundToInt
 
 private val ICON_SIZE   = 30.dp
 private val SLOT_SIZE   = 52.dp
+private val SIDEBAR_RADIUS  = RoundedCornerShape(12.dp)
+private val NAV_CHIP_SIZE   = 46.dp
+private val NAV_CHIP_RADIUS = RoundedCornerShape(14.dp)
 
 @Composable
 fun Sidebar(
@@ -61,9 +65,20 @@ fun Sidebar(
 ) {
     val isDayMode    = LocalDayMode.current
     val accent       = Color(settings.accentColor)
-    val sidebarBg    = if (isDayMode) Color(0xFFE0E0E0) else Color.Black.copy(alpha = 0.4f)
+    // Derived from the launcher's own background, not a fixed gray — a
+    // lighter tint of it (elevation via tone, not a hard-coded color), so
+    // the sidebar stays in the same palette as whatever background the user
+    // picks instead of only matching the one default background it was
+    // originally tuned against. Still lighter than the background itself so
+    // the card boundary (SIDEBAR_RADIUS + the gap around it) stays visible
+    // rather than the sidebar blending into its own margin.
+    val sidebarBg    = if (settings.useCustomBackgroundColor) {
+        val customBg = Color(settings.backgroundColor)
+        if (isDayMode) lerp(customBg, Color.White, 0.35f) else lerp(customBg, Color.White, 0.22f)
+    } else {
+        if (isDayMode) Color(0xFFE0E0E0) else Color.Black.copy(alpha = 0.4f)
+    }
     val iconInactive = if (isDayMode) Color(0xFF777777) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
-    val dividerColor = if (isDayMode) Color(0xFFCCCCCC) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f)
     val density      = LocalDensity.current
     val slotSizePx   = with(density) { SLOT_SIZE.toPx() }
 
@@ -135,6 +150,7 @@ fun Sidebar(
             isHorizontal = isHorizontal,
             onClick      = { onNavigate(NavDestination.APP_LIBRARY) }
         )
+        if (!isHorizontal) Spacer(Modifier.height(10.dp))
         NavButton(
             icon         = Icons.Default.Settings,
             label        = "Settings",
@@ -144,6 +160,7 @@ fun Sidebar(
             isHorizontal = isHorizontal,
             onClick      = { onNavigate(NavDestination.SETTINGS) }
         )
+        if (!isHorizontal) Spacer(Modifier.height(10.dp))
         NavButton(
             icon         = Icons.Default.Home,
             label        = "Home",
@@ -197,8 +214,10 @@ fun Sidebar(
     } else {
         Column(
             modifier = modifier
+                .padding(vertical = 10.dp)
                 .width(56.dp)
                 .fillMaxHeight()
+                .clip(SIDEBAR_RADIUS)
                 .background(sidebarBg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -213,7 +232,7 @@ fun Sidebar(
                 shortcutsContent()
             }
 
-            HorizontalDivider(color = dividerColor)
+            Spacer(Modifier.height(6.dp))
             navButtons()
             Spacer(Modifier.height(4.dp))
         }
@@ -497,9 +516,6 @@ private fun NavButton(
     isHorizontal: Boolean = false,
     onClick: () -> Unit
 ) {
-    val isDayMode = LocalDayMode.current
-    val activeIconColor = if (isDayMode) Color(0xFF111111) else Color.White
-    val activeBg = if (isDayMode) Color(0xFF000000).copy(alpha = 0.08f) else Color.White.copy(alpha = 0.06f)
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -507,15 +523,22 @@ private fun NavButton(
                 if (isHorizontal) Modifier.fillMaxHeight().width(SLOT_SIZE)
                 else              Modifier.fillMaxWidth().height(SLOT_SIZE)
             )
-            .background(if (isActive) activeBg else Color.Transparent)
             .clickable(onClick = onClick)
     ) {
-        Icon(
-            imageVector        = icon,
-            contentDescription = label,
-            tint               = if (isActive) activeIconColor else iconInactive,
-            modifier           = Modifier.size(ICON_SIZE)
-        )
+        Box(
+            modifier = Modifier
+                .size(NAV_CHIP_SIZE)
+                .clip(NAV_CHIP_RADIUS)
+                .background(if (isActive) accent.copy(alpha = 0.16f) else Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector        = icon,
+                contentDescription = label,
+                tint               = if (isActive) accent else iconInactive,
+                modifier           = Modifier.size(ICON_SIZE)
+            )
+        }
     }
 }
 
