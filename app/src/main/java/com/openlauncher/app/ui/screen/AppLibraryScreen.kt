@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalTextInputService
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
@@ -43,6 +44,9 @@ fun AppLibraryScreen(
     isCarPlayPickerMode: Boolean,
     carPlayPickerLabel: String = "CHOOSE CARPLAY APP",
     accent: Color,
+    iconScale: Float = 1.4f,
+    gridColumns: Int = 6,
+    gridRows: Int = 3,
     onAppClick: (AppInfo) -> Unit,
     onPickerSelect: (Int, AppInfo) -> Unit,
     onCarPlaySelect: (AppInfo) -> Unit,
@@ -169,25 +173,36 @@ fun AppLibraryScreen(
         }
 
         // ── App grid ────────────────────────────────────────────────────────────
-        LazyVerticalGrid(
-            columns               = GridCells.Fixed(6),
-            contentPadding        = PaddingValues(6.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement   = Arrangement.spacedBy(4.dp),
-            modifier              = Modifier.fillMaxSize()
-        ) {
-            items(filtered, key = { it.packageName }) { app ->
-                AppTile(
-                    app     = app,
-                    accent  = accent,
-                    onClick = {
-                        when {
-                            isCarPlayPickerMode            -> onCarPlaySelect(app)
-                            isPickerMode && pickerSlot != null -> onPickerSelect(pickerSlot, app)
-                            else                           -> onAppClick(app)
+        // Columns come from GridCells.Fixed (Compose divides width evenly on its
+        // own); row height doesn't have an equivalent built-in, so it's computed
+        // here from the measured available height / gridRows, keeping the grid
+        // fully filled instead of the tile size just following icon scale.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val rows = gridRows.coerceAtLeast(1)
+            val tileHeight = ((maxHeight - 12.dp - 4.dp * (rows - 1)) / rows).coerceAtLeast(40.dp)
+
+            LazyVerticalGrid(
+                columns               = GridCells.Fixed(gridColumns.coerceAtLeast(1)),
+                contentPadding        = PaddingValues(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement   = Arrangement.spacedBy(4.dp),
+                modifier              = Modifier.fillMaxSize()
+            ) {
+                items(filtered, key = { it.packageName }) { app ->
+                    AppTile(
+                        app        = app,
+                        accent     = accent,
+                        iconScale  = iconScale,
+                        tileHeight = tileHeight,
+                        onClick = {
+                            when {
+                                isCarPlayPickerMode            -> onCarPlaySelect(app)
+                                isPickerMode && pickerSlot != null -> onPickerSelect(pickerSlot, app)
+                                else                           -> onAppClick(app)
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }
@@ -197,33 +212,38 @@ fun AppLibraryScreen(
 private fun AppTile(
     app: AppInfo,
     accent: Color,
+    iconScale: Float,
+    tileHeight: Dp,
     onClick: () -> Unit
 ) {
     val isDayMode  = LocalDayMode.current
     val tileBg     = if (isDayMode) Color(0xFFFFFFFF) else Color(0xFF0B0B0B)
     val tileBorder = if (isDayMode) Color(0xFFCCCCCC) else Color(0xFF1A1A1A)
+    val iconSize   = 40.dp * iconScale
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
-            .aspectRatio(1f)
+            .fillMaxWidth()
+            .height(tileHeight)
             .clip(TILE_RADIUS)
             .background(tileBg)
             .border(1.dp, tileBorder, TILE_RADIUS)
             .clickable(onClick = onClick)
             .padding(7.dp)
     ) {
-        val bmp = remember(app.packageName) {
-            try { app.icon.toBitmap(80, 80) } catch (_: Exception) { null }
+        val bmp = remember(app.packageName, iconScale) {
+            val px = (80 * iconScale).toInt()
+            try { app.icon.toBitmap(px, px) } catch (_: Exception) { null }
         }
         if (bmp != null) {
             androidx.compose.foundation.Image(
                 painter            = BitmapPainter(bmp.asImageBitmap()),
                 contentDescription = app.appName,
-                modifier           = Modifier.size(40.dp)
+                modifier           = Modifier.size(iconSize)
             )
         } else {
-            Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(iconSize), contentAlignment = Alignment.Center) {
                 Text(app.appName.take(1).uppercase(), color = accent, fontSize = 18.sp)
             }
         }
@@ -232,11 +252,12 @@ private fun AppTile(
             text          = app.appName.uppercase(),
             style         = MaterialTheme.typography.labelSmall,
             color         = if (isDayMode) Color(0xFF666666) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            maxLines      = 1,
-            overflow      = TextOverflow.Ellipsis,
+            maxLines      = 2,
+            overflow      = TextOverflow.Clip,
             textAlign     = TextAlign.Center,
-            letterSpacing = 1.sp,
-            fontSize      = 8.sp
+            letterSpacing = 0.5.sp,
+            lineHeight    = 12.sp,
+            fontSize      = 11.sp
         )
     }
 }

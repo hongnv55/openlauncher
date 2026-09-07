@@ -367,6 +367,9 @@ class MainActivity : ComponentActivity() {
                                             else -> "CHOOSE CARPLAY APP"
                                         },
                                         accent              = accent,
+                                        iconScale           = settings.appIconScale,
+                                        gridColumns         = settings.appGridColumns,
+                                        gridRows            = settings.appGridRows,
                                         onAppClick          = { app -> vm.launchApp(app.packageName) },
                                         onPickerSelect      = { slot, app -> vm.assignShortcut(slot, app) },
                                         onCarPlaySelect     = { app -> vm.assignPickerApp(app) }

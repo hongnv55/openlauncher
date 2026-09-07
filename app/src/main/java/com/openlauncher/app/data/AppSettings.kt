@@ -71,6 +71,12 @@ data class AppSettings(
     val fontBold: Boolean = false,
     val textScale: Float = 1.2f,
     val uiScale: Float = 1.0f,
+    // Scales the app icon (and its decode resolution) in the App Library grid tiles
+    val appIconScale: Float = 1.2f,
+    // Columns in the App Library grid — tile width = available width / appGridColumns
+    val appGridColumns: Int = 6,
+    // Rows visible without scrolling — tile height = available height / appGridRows
+    val appGridRows: Int = 3,
     val clockStyle: ClockStyle = ClockStyle.DIGITAL,
     val unitSystem: UnitSystem = UnitSystem.METRIC,
     val appFont: AppFont = AppFont.JETBRAINS_MONO,

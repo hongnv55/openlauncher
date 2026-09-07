@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.openlauncher.app.data.AppFont
 import com.openlauncher.app.data.AppSettings
 import com.openlauncher.app.data.DayNightMode
+import kotlin.math.roundToInt
 import com.openlauncher.app.data.SidebarPosition
 import com.openlauncher.app.data.ShortcutConfig
 import com.openlauncher.app.data.GradientDirection
@@ -731,6 +732,61 @@ fun SettingsScreen(
                     onValueChange = { onUpdate { copy(uiScale = it) } },
                     valueRange    = 0.7f..1.5f,
                     steps         = 7,
+                    colors        = sliderColors(accent),
+                    modifier      = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                )
+            }
+        }
+
+        // ── App Library ──────────────────────────────────────────────────────
+        SettingsSection("App Library") {
+            Column {
+                SettingsRow(
+                    label    = "App Icon Size",
+                    sublabel = "${"%.0f".format(settings.appIconScale * 100)}%",
+                    icon     = Icons.Default.Apps
+                ) {}
+                Slider(
+                    value         = settings.appIconScale,
+                    onValueChange = { onUpdate { copy(appIconScale = it) } },
+                    valueRange    = 1.0f..2.0f,
+                    steps         = 9,
+                    colors        = sliderColors(accent),
+                    modifier      = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                )
+            }
+
+            SettingsDivider()
+
+            Column {
+                SettingsRow(
+                    label    = "Grid Columns",
+                    sublabel = "${settings.appGridColumns} across",
+                    icon     = Icons.Default.ViewColumn
+                ) {}
+                Slider(
+                    value         = settings.appGridColumns.toFloat(),
+                    onValueChange = { onUpdate { copy(appGridColumns = it.roundToInt()) } },
+                    valueRange    = 4f..10f,
+                    steps         = 5,
+                    colors        = sliderColors(accent),
+                    modifier      = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                )
+            }
+
+            SettingsDivider()
+
+            Column {
+                SettingsRow(
+                    label    = "Grid Rows",
+                    sublabel = "${settings.appGridRows} visible without scrolling",
+                    icon     = Icons.Default.ViewAgenda
+                ) {}
+                Slider(
+                    value         = settings.appGridRows.toFloat(),
+                    onValueChange = { onUpdate { copy(appGridRows = it.roundToInt()) } },
+                    valueRange    = 2f..6f,
+                    steps         = 3,
                     colors        = sliderColors(accent),
                     modifier      = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 )

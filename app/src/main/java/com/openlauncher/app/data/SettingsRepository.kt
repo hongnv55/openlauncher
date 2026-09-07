@@ -26,6 +26,9 @@ class SettingsRepository(private val context: Context) {
         val FONT_BOLD          = booleanPreferencesKey("font_bold")
         val TEXT_SCALE         = floatPreferencesKey("text_scale")
         val UI_SCALE           = floatPreferencesKey("ui_scale")
+        val APP_ICON_SCALE     = floatPreferencesKey("app_icon_scale")
+        val APP_GRID_COLUMNS   = intPreferencesKey("app_grid_columns")
+        val APP_GRID_ROWS      = intPreferencesKey("app_grid_rows")
         val CLOCK_STYLE        = stringPreferencesKey("clock_style")
         val UNIT_SYSTEM        = stringPreferencesKey("unit_system")
         val APP_FONT           = stringPreferencesKey("app_font")
@@ -104,6 +107,9 @@ class SettingsRepository(private val context: Context) {
                 fontBold       = prefs[Keys.FONT_BOLD]        ?: defaults.fontBold,
                 textScale      = prefs[Keys.TEXT_SCALE]       ?: defaults.textScale,
                 uiScale        = prefs[Keys.UI_SCALE]         ?: defaults.uiScale,
+                appIconScale   = prefs[Keys.APP_ICON_SCALE]   ?: defaults.appIconScale,
+                appGridColumns = prefs[Keys.APP_GRID_COLUMNS] ?: defaults.appGridColumns,
+                appGridRows    = prefs[Keys.APP_GRID_ROWS]    ?: defaults.appGridRows,
                 clockStyle     = prefs[Keys.CLOCK_STYLE]?.let { runCatching { ClockStyle.valueOf(it) }.getOrNull() } ?: defaults.clockStyle,
                 unitSystem     = prefs[Keys.UNIT_SYSTEM]?.let { runCatching { UnitSystem.valueOf(it) }.getOrNull() } ?: defaults.unitSystem,
                 appFont        = prefs[Keys.APP_FONT]?.let { runCatching { AppFont.valueOf(it) }.getOrNull() } ?: defaults.appFont,
@@ -175,6 +181,9 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.FONT_BOLD]          = s.fontBold
             prefs[Keys.TEXT_SCALE]         = s.textScale
             prefs[Keys.UI_SCALE]           = s.uiScale
+            prefs[Keys.APP_ICON_SCALE]     = s.appIconScale
+            prefs[Keys.APP_GRID_COLUMNS]   = s.appGridColumns
+            prefs[Keys.APP_GRID_ROWS]      = s.appGridRows
             prefs[Keys.CLOCK_STYLE]        = s.clockStyle.name
             prefs[Keys.UNIT_SYSTEM]        = s.unitSystem.name
             prefs[Keys.APP_FONT]           = s.appFont.name
