@@ -48,6 +48,8 @@ fun SettingsScreen(
     accent: Color,
     onUpdate: (AppSettings.() -> AppSettings) -> Unit,
     onAssignPip: (slot: Int) -> Unit,
+    onClearPip: (slot: Int) -> Unit,
+    onStartAutostartPicker: () -> Unit,
     onReset: () -> Unit,
     onRestartLauncher: () -> Unit,
     modifier: Modifier = Modifier
@@ -372,15 +374,17 @@ fun SettingsScreen(
                 }
             }
 
-            SettingsDivider()
+            if (settings.shortcuts.size < 4) {
+                SettingsDivider()
 
-            SettingsButton(
-                label    = "Add Slot",
-                sublabel = "Append an empty shortcut to the sidebar",
-                icon     = Icons.Default.Add,
-                accent   = accent,
-                onClick  = { onUpdate { copy(shortcuts = shortcuts + ShortcutConfig()) } }
-            )
+                SettingsButton(
+                    label    = "Add Slot",
+                    sublabel = "Append an empty shortcut to the sidebar (max 4)",
+                    icon     = Icons.Default.Add,
+                    accent   = accent,
+                    onClick  = { onUpdate { copy(shortcuts = shortcuts + ShortcutConfig()) } }
+                )
+            }
         }
 
         // ── Status & Navigation ──────────────────────────────────────────────
@@ -438,13 +442,21 @@ fun SettingsScreen(
 
             val firstPackage = settings.pipAppPackages.getOrElse(0) { "" }
             val secondPackage = settings.pipAppPackages.getOrElse(1) { "" }
+            val thirdPackage = settings.pipAppPackages.getOrElse(2) { "" }
 
             SettingsButton(
                 label = "First PiP",
                 sublabel = appLabel(firstPackage),
                 icon = Icons.Default.PictureInPicture,
                 accent = accent,
-                onClick = { onAssignPip(0) }
+                onClick = { onAssignPip(0) },
+                trailingContent = {
+                    if (firstPackage.isNotEmpty()) {
+                        IconButton(onClick = { onClearPip(0) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
             )
 
             SettingsDivider()
@@ -454,8 +466,77 @@ fun SettingsScreen(
                 sublabel = appLabel(secondPackage),
                 icon = Icons.Default.PictureInPictureAlt,
                 accent = accent,
-                onClick = { onAssignPip(1) }
+                onClick = { onAssignPip(1) },
+                trailingContent = {
+                    if (secondPackage.isNotEmpty()) {
+                        IconButton(onClick = { onClearPip(1) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
             )
+
+            SettingsDivider()
+
+            SettingsButton(
+                label = "Third PiP",
+                sublabel = appLabel(thirdPackage),
+                icon = Icons.Default.PictureInPictureAlt,
+                accent = accent,
+                onClick = { onAssignPip(2) },
+                trailingContent = {
+                    if (thirdPackage.isNotEmpty()) {
+                        IconButton(onClick = { onClearPip(2) }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+            )
+        }
+
+        // ── Autostart Apps ───────────────────────────────────────────────────
+        SettingsSection("Autostart Apps") {
+            fun appLabel(packageName: String): String = runCatching {
+                val info = context.packageManager.getApplicationInfo(packageName, 0)
+                context.packageManager.getApplicationLabel(info).toString()
+            }.getOrDefault(packageName)
+
+            if (settings.autostartPackages.isEmpty()) {
+                SettingsRow(
+                    label    = "No autostart apps configured",
+                    sublabel = "Silently launched on a hidden display when Open " +
+                        "Launcher starts — best for background work (music, sync), " +
+                        "not video/heavy UI (max 3)",
+                    icon     = Icons.Default.Apps
+                ) {}
+            } else {
+                settings.autostartPackages.forEachIndexed { index, pkg ->
+                    if (index > 0) SettingsDivider()
+                    SettingsRow(
+                        label    = appLabel(pkg),
+                        sublabel = "Runs silently in the background",
+                        icon     = Icons.Default.Apps
+                    ) {
+                        IconButton(
+                            onClick  = { onUpdate { copy(autostartPackages = autostartPackages - pkg) } },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+            }
+
+            if (settings.autostartPackages.size < 3) {
+                SettingsDivider()
+                SettingsButton(
+                    label    = "Add Autostart App",
+                    sublabel = "Best for background work (music, sync) — not video/heavy UI (max 3)",
+                    icon     = Icons.Default.Add,
+                    accent   = accent,
+                    onClick  = onStartAutostartPicker
+                )
+            }
         }
 
         // ── Appearance ───────────────────────────────────────────────────────
@@ -1067,7 +1148,8 @@ private fun ColumnScope.SettingsButton(
     sublabel: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     accent: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    trailingContent: @Composable RowScope.() -> Unit = {}
 ) {
     val isDayMode  = LocalDayMode.current
     val labelColor = if (isDayMode) Color(0xFF111111) else Color(0xFFDDDDDD)
@@ -1088,6 +1170,7 @@ private fun ColumnScope.SettingsButton(
             if (sublabel.isNotEmpty())
                 Text(sublabel, style = MaterialTheme.typography.labelSmall, color = subColor, fontSize = 11.sp)
         }
+        trailingContent()
         Icon(Icons.Default.ChevronRight, null, tint = chevronC, modifier = Modifier.size(16.dp))
     }
 }

@@ -22,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -39,13 +40,14 @@ import androidx.core.graphics.drawable.toBitmap
 import com.openlauncher.app.data.AppSettings
 import com.openlauncher.app.data.DefaultShortcutIcon
 import com.openlauncher.app.data.ShortcutConfig
+import com.openlauncher.app.data.SidebarPosition
 import com.openlauncher.app.model.NavDestination
 import com.openlauncher.app.ui.theme.LocalDayMode
 import kotlin.math.roundToInt
 
 private val ICON_SIZE   = 30.dp
 private val SLOT_SIZE   = 52.dp
-private val SIDEBAR_RADIUS  = RoundedCornerShape(12.dp)
+private val SIDEBAR_CORNER  = 12.dp
 private val NAV_CHIP_SIZE   = 46.dp
 private val NAV_CHIP_RADIUS = RoundedCornerShape(14.dp)
 
@@ -74,7 +76,7 @@ fun Sidebar(
     // rather than the sidebar blending into its own margin.
     val sidebarBg    = if (settings.useCustomBackgroundColor) {
         val customBg = Color(settings.backgroundColor)
-        if (isDayMode) lerp(customBg, Color.White, 0.35f) else lerp(customBg, Color.White, 0.22f)
+        if (isDayMode) lerp(customBg, Color.White, 0.8f) else lerp(customBg, Color.White, 0.55f)
     } else {
         if (isDayMode) Color(0xFFE0E0E0) else Color.Black.copy(alpha = 0.4f)
     }
@@ -173,10 +175,31 @@ fun Sidebar(
     }
 
     if (isHorizontal) {
+        // Bottom edge is flush with the window's own bottom edge — no gap,
+        // no radius there — while the other three edges (top, facing the
+        // content pane, and both sides) keep the floating-card treatment.
+        val bottomBarShape = RoundedCornerShape(
+            topStart = SIDEBAR_CORNER, topEnd = SIDEBAR_CORNER,
+            bottomEnd = 0.dp, bottomStart = 0.dp
+        )
+        BoxWithConstraints(modifier = modifier) {
+        // Inset proportionally (10% each side, i.e. 80% of the available
+        // length) rather than a fixed dp amount, so the bar reads as its own
+        // fixed, independent element noticeably shorter than the content it
+        // sits beside — not just another same-sized card — at any width.
+        val inset = maxWidth * 0.1f
         Box(
-            modifier = modifier
+            modifier = Modifier
+                .padding(horizontal = inset)
                 .fillMaxWidth()
                 .height(56.dp)
+                .shadow(
+                    elevation    = 6.dp,
+                    shape        = bottomBarShape,
+                    ambientColor = Color.Black.copy(alpha = 0.4f),
+                    spotColor    = Color.Black.copy(alpha = 0.4f)
+                )
+                .clip(bottomBarShape)
                 .background(sidebarBg)
         ) {
             // Shortcuts centred, inset past the edge-pinned nav buttons and
@@ -211,13 +234,34 @@ fun Sidebar(
                 }
             }
         }
+        }
     } else {
+        // The edge touching the window (left edge for a LEFT sidebar, right
+        // edge for RIGHT) is flush — no gap, no radius there — while the
+        // other three edges keep the floating-card treatment.
+        val sidebarShape = if (settings.sidebarPosition == SidebarPosition.RIGHT) {
+            RoundedCornerShape(topStart = SIDEBAR_CORNER, topEnd = 0.dp, bottomEnd = 0.dp, bottomStart = SIDEBAR_CORNER)
+        } else {
+            RoundedCornerShape(topStart = 0.dp, topEnd = SIDEBAR_CORNER, bottomEnd = SIDEBAR_CORNER, bottomStart = 0.dp)
+        }
+        BoxWithConstraints(modifier = modifier) {
+        // Inset proportionally (10% each side, i.e. 80% of the available
+        // height) rather than a fixed dp amount, so the bar reads as its own
+        // fixed, independent element noticeably shorter than the content it
+        // sits beside — not just another same-sized card — at any height.
+        val inset = maxHeight * 0.1f
         Column(
-            modifier = modifier
-                .padding(vertical = 10.dp)
+            modifier = Modifier
+                .padding(vertical = inset)
                 .width(56.dp)
                 .fillMaxHeight()
-                .clip(SIDEBAR_RADIUS)
+                .shadow(
+                    elevation    = 6.dp,
+                    shape        = sidebarShape,
+                    ambientColor = Color.Black.copy(alpha = 0.4f),
+                    spotColor    = Color.Black.copy(alpha = 0.4f)
+                )
+                .clip(sidebarShape)
                 .background(sidebarBg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -232,9 +276,23 @@ fun Sidebar(
                 shortcutsContent()
             }
 
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
+            // Faint boundary between the shortcut slots and the fixed nav
+            // actions below — inset from both edges rather than spanning
+            // full-width, so it reads as a soft zone marker rather than a
+            // hard seam that'd cut across the card's rounded silhouette.
+            HorizontalDivider(
+                modifier  = Modifier
+                    .padding(horizontal = 12.dp)
+                    .width(32.dp),
+                thickness = 1.dp,
+                color     = if (isDayMode) Color.Black.copy(alpha = 0.08f)
+                            else Color.White.copy(alpha = 0.10f)
+            )
+            Spacer(Modifier.height(8.dp))
             navButtons()
             Spacer(Modifier.height(4.dp))
+        }
         }
     }
 

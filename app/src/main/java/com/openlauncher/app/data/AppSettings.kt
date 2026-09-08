@@ -100,16 +100,28 @@ data class AppSettings(
     val showSpeedometer: Boolean = false,
     val dayNightMode: DayNightMode = DayNightMode.LIGHT,
     val showPip: Boolean = true,
-    // Up to 2 apps shown side-by-side in the PIP widget ("" = slot unassigned)
-    val pipAppPackages: List<String> = listOf("", ""),
-    // Fraction of the pane area (excluding the divider) given to slot 0
+    // Up to 3 apps shown side-by-side in the PIP widget ("" = slot unassigned)
+    val pipAppPackages: List<String> = listOf("", "", ""),
+    // Fraction of the pane area (excluding the divider(s)) given to the
+    // first visual position
     val pipPaneSplit: Float = 0.5f,
-    // How many of pipAppPackages are actually shown (1 = slot 0 fills the widget, 2 = split view)
+    // With 3 panes: fraction of whatever's left after the first position
+    // that goes to the second visual position (the third gets the rest)
+    val pipPaneSplit2: Float = 0.5f,
+    // How many of pipAppPackages are actually shown (1-3)
     val pipAppCount: Int = 1,
-    // Which side each PIP slot renders on — purely a display arrangement,
-    // independent of pipAppPackages, so tapping the divider grip to swap
-    // sides never touches slot identity and never reloads either app
-    val pipPanesReversed: Boolean = false,
+    // paneOrder[visual position] = slot index — purely a display arrangement,
+    // independent of pipAppPackages, so tapping a divider grip to swap two
+    // adjacent panes' sides never touches slot identity and never reloads
+    // any of the embedded apps
+    val pipPaneOrder: List<Int> = listOf(0, 1, 2),
+    // Apps silently launched (embedded on a hidden, tiny VirtualDisplay — same
+    // mechanism as the PIP panes, just never shown) as soon as the launcher
+    // starts. Best suited to apps that do background work while resumed
+    // (music, sync); a video-heavy app still fully decodes/renders even
+    // though nothing ever displays it. Capped at 3 (max 3 backgrounded app
+    // processes at once, matching the PIP pane cap).
+    val autostartPackages: List<String> = emptyList(),
     // Head unit's radio app — mirrored & controlled via its MediaSession
     val radioPackage: String = "",
     val onboardingCompleted: Boolean = false,

@@ -154,6 +154,10 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(settings.hideSystemStatusBar, settings.hideSystemNavBar) {
                 hideSystemBars()
             }
+            // Autostart Apps: settings/picker UI exists (see SettingsScreen),
+            // but the actual "launch it silently" mechanism is intentionally
+            // not wired up yet — settings.autostartPackages is only stored
+            // for now, nothing reads it to actually start anything.
             val nav            by vm.nav.collectAsStateWithLifecycle()
             val apps        by vm.apps.collectAsStateWithLifecycle()
             val appsLoading by vm.appsLoading.collectAsStateWithLifecycle()
@@ -311,8 +315,9 @@ class MainActivity : ComponentActivity() {
                                 onAssignPip         = { slot -> vm.startPipPicker(slot) },
                                 onClearPip          = { slot -> vm.clearPipApp(slot) },
                                 onSetPipSplit       = { vm.setPipSplit(it) },
+                                onSetPipSplit2      = { vm.setPipSplit2(it) },
                                 onSetPipAppCount    = { vm.setPipAppCount(it) },
-                                onSwapPipApps       = { vm.swapPipApps() },
+                                onSwapPipApps       = { dividerIndex -> vm.swapPipApps(dividerIndex) },
                                 onTapNowPlaying     = {
                                     val pkg = nowPlaying?.controller?.packageName
                                     if (!pkg.isNullOrEmpty()) vm.launchApp(pkg)
@@ -363,6 +368,7 @@ class MainActivity : ComponentActivity() {
                                             com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.ANDROID_AUTO -> "CHOOSE ANDROID AUTO APP"
                                             com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.PIP          -> "CHOOSE PIP APP"
                                             com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.RADIO        -> "CHOOSE RADIO APP"
+                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.AUTOSTART    -> "CHOOSE AUTOSTART APP"
                                             else -> "CHOOSE CARPLAY APP"
                                         },
                                         accent              = accent,
@@ -381,6 +387,10 @@ class MainActivity : ComponentActivity() {
                                         onAssignPip = { slot ->
                                             vm.startPipPicker(slot, NavDestination.SETTINGS)
                                         },
+                                        onClearPip = { slot -> vm.clearPipApp(slot) },
+                                        onStartAutostartPicker = {
+                                            vm.startAutostartPicker(NavDestination.SETTINGS)
+                                        },
                                         onReset  = { vm.resetSettings() },
                                         onRestartLauncher = { restartLauncher() }
                                     )
@@ -389,31 +399,27 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // Sidebar sits with a gap from the true window edge —
-                        // not from the content pane, which already has its
-                        // own margin from the widget-grid's own `gap` padding
-                        // — so the sidebar reads as a floating element too,
-                        // consistent with the rounded/floating PIP panel.
-                        // No hard divider line between sidebar and content —
-                        // just the matching gap on both sides of it, same
-                        // language as the sidebar's own margin from the
-                        // window edge, so all three gaps read as equal.
+                        // The sidebar's own edge that matches its position
+                        // (left edge for LEFT, right edge for RIGHT, bottom
+                        // edge for BOTTOM) sits flush against the true
+                        // window edge — no gap, no radius there (handled
+                        // inside Sidebar.kt). Every other edge — including
+                        // the one facing the content pane — keeps the gap,
+                        // so the sidebar still reads as floating on three
+                        // sides.
                         if (isBottomBar) {
                             Column(modifier = Modifier.fillMaxSize()) {
                                 mainPane(Modifier.weight(1f).fillMaxWidth())
                                 sidebarContent()
-                                Spacer(Modifier.height(10.dp))
                             }
                         } else {
                             Row(modifier = Modifier.fillMaxSize()) {
                                 if (settings.sidebarPosition == SidebarPosition.LEFT) {
-                                    Spacer(Modifier.width(10.dp))
                                     sidebarContent()
                                 }
                                 mainPane(Modifier.weight(1f).fillMaxHeight())
                                 if (settings.sidebarPosition == SidebarPosition.RIGHT) {
                                     sidebarContent()
-                                    Spacer(Modifier.width(10.dp))
                                 }
                             }
                         }

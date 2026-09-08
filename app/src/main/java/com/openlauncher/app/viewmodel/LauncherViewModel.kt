@@ -114,7 +114,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     // ── CarPlay / Android Auto picker ─────────────────────────────────────────
-    enum class AppPickerTarget { CARPLAY, ANDROID_AUTO, PIP, RADIO }
+    enum class AppPickerTarget { CARPLAY, ANDROID_AUTO, PIP, RADIO, AUTOSTART }
 
     private val _appPickerTarget = MutableStateFlow<AppPickerTarget?>(null)
     val carPlayPickerActive: StateFlow<Boolean> = MutableStateFlow(false) // kept for compat
@@ -146,6 +146,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _nav.value = NavDestination.APP_LIBRARY
     }
 
+    fun startAutostartPicker(returnDestination: NavDestination = NavDestination.HOME) {
+        pickerReturnDestination = returnDestination
+        _appPickerTarget.value = AppPickerTarget.AUTOSTART
+        _nav.value = NavDestination.APP_LIBRARY
+    }
+
     fun assignPickerApp(app: AppInfo) {
         when (_appPickerTarget.value) {
             AppPickerTarget.CARPLAY      -> updateSettings { copy(carPlayPackage = app.packageName) }
@@ -157,6 +163,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }, pipAppCount = maxOf(pipAppCount, pipPickerSlot + 1))
             }
             AppPickerTarget.RADIO        -> updateSettings { copy(radioPackage = app.packageName) }
+            AppPickerTarget.AUTOSTART    -> updateSettings {
+                if (app.packageName in autostartPackages || autostartPackages.size >= 3) this
+                else copy(autostartPackages = autostartPackages + app.packageName)
+            }
             null -> {}
         }
         _appPickerTarget.value = null
@@ -168,18 +178,48 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun clearAndroidAutoApp()  { updateSettings { copy(androidAutoPackage = "") } }
     fun clearPipApp(slot: Int) {
         updateSettings {
-            copy(pipAppPackages = pipAppPackages.toMutableList().also { list ->
-                while (list.size <= slot) list.add("")
-                list[slot] = ""
-            })
+            // Compact in the panes' current LEFT-TO-RIGHT visual order (not raw
+            // slot index) so the remaining apps slide over to fill the freed
+            // space and pipAppCount shrinks to match — instead of leaving a
+            // lingering empty "ADD APPLICATION" placeholder where the cleared
+            // pane used to be. paneOrder resets to identity since, post-compact,
+            // each slot's index directly is its visual position again.
+            val order = pipPaneOrder.let { if (it.size >= 3) it else it + (it.size until 3) }
+            val remaining = order
+                .filter { it != slot }
+                .mapNotNull { pipAppPackages.getOrNull(it) }
+                .filter { it.isNotEmpty() }
+            copy(
+                pipAppPackages = (remaining + listOf("", "", "")).take(3),
+                pipAppCount = remaining.size.coerceIn(1, 3),
+                pipPaneOrder = listOf(0, 1, 2)
+            )
         }
     }
-    fun setPipSplit(fraction: Float) { updateSettings { copy(pipPaneSplit = fraction.coerceIn(0.15f, 0.85f)) } }
-    fun setPipAppCount(count: Int)   { updateSettings { copy(pipAppCount = count.coerceIn(1, 2)) } }
-    // A pure display-arrangement flip — which slot renders left vs right —
-    // not a reassignment, so neither embedded app reloads (see PipWidget's
-    // fixed slot0/slot1 declaration order, swapped only via offset/width).
-    fun swapPipApps() { updateSettings { copy(pipPanesReversed = !pipPanesReversed) } }
+    fun removeAutostartApp(packageName: String) {
+        updateSettings { copy(autostartPackages = autostartPackages - packageName) }
+    }
+    fun setPipSplit(fraction: Float)  { updateSettings { copy(pipPaneSplit = fraction.coerceIn(0.15f, 0.85f)) } }
+    fun setPipSplit2(fraction: Float) { updateSettings { copy(pipPaneSplit2 = fraction.coerceIn(0.15f, 0.85f)) } }
+    fun setPipAppCount(count: Int)    { updateSettings { copy(pipAppCount = count.coerceIn(1, 3)) } }
+    // A pure display-arrangement swap — which slot renders in which visual
+    // position — not a reassignment, so no embedded app reloads (see
+    // PipWidget's fixed slot0/slot1/slot2 declaration order, rearranged only
+    // via offset/width). [dividerIndex] identifies which divider was tapped
+    // (0 = between visual positions 0/1, 1 = between 1/2) and swaps exactly
+    // those two adjacent positions in the order list.
+    fun swapPipApps(dividerIndex: Int) {
+        updateSettings {
+            val order = pipPaneOrder.toMutableList().also { list ->
+                while (list.size < 3) list.add(list.size)
+            }
+            val i = dividerIndex.coerceIn(0, order.size - 2)
+            val tmp = order[i]
+            order[i] = order[i + 1]
+            order[i + 1] = tmp
+            copy(pipPaneOrder = order)
+        }
+    }
     fun clearRadioApp()        { updateSettings { copy(radioPackage = "") } }
 
     fun updateWidgetConfig(id: String, spanX: Int, spanY: Int) {

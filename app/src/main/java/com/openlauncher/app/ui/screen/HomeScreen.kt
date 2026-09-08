@@ -118,8 +118,9 @@ fun HomeScreen(
     onAssignPip: (slot: Int) -> Unit,
     onClearPip: (slot: Int) -> Unit,
     onSetPipSplit: (Float) -> Unit,
+    onSetPipSplit2: (Float) -> Unit = {},
     onSetPipAppCount: (Int) -> Unit,
-    onSwapPipApps: () -> Unit = {},
+    onSwapPipApps: (dividerIndex: Int) -> Unit = {},
     onTapNowPlaying: () -> Unit,
     onUpdateWidget: (id: String, spanX: Int, spanY: Int) -> Unit,
     onMoveWidget: (id: String, gridX: Int, gridY: Int) -> Unit,
@@ -492,19 +493,21 @@ fun HomeScreen(
                             modifier  = Modifier.fillMaxSize()
                         )
                         "PIP" -> PipWidget(
-                            packageNames  = settings.pipAppPackages,
-                            appCount      = settings.pipAppCount,
-                            splitFraction = settings.pipPaneSplit,
-                            accent        = accent,
+                            packageNames   = settings.pipAppPackages,
+                            appCount       = settings.pipAppCount,
+                            splitFraction  = settings.pipPaneSplit,
+                            splitFraction2 = settings.pipPaneSplit2,
+                            accent         = accent,
                             launcherBackground = launcherBackground,
-                            isDayMode     = isDayMode,
-                            isActive      = isActive,
-                            isEditing     = editMode,
-                            onAssign      = onAssignPip,
-                            onSplitChange = onSetPipSplit,
-                            onSwap        = onSwapPipApps,
-                            panesReversed = settings.pipPanesReversed,
-                            modifier      = Modifier.fillMaxSize()
+                            isDayMode      = isDayMode,
+                            isActive       = isActive,
+                            isEditing      = editMode,
+                            onAssign       = onAssignPip,
+                            onSplitChange  = onSetPipSplit,
+                            onSplitChange2 = onSetPipSplit2,
+                            onSwap         = onSwapPipApps,
+                            paneOrder      = settings.pipPaneOrder,
+                            modifier       = Modifier.fillMaxSize()
                         )
                     }
 
@@ -716,17 +719,33 @@ private fun WidgetContextMenu(
                     isDayMode = isDayMode
                 )
                 HorizontalDivider(color = menuDivider)
+                ContextRow(
+                    label   = "3 APPS",
+                    icon    = Icons.Default.PictureInPicture,
+                    tint    = if (pipAppCount == 3) accent else inactiveMenuTint,
+                    onClick = { onSetPipAppCount(3) },
+                    isDayMode = isDayMode
+                )
+                HorizontalDivider(color = menuDivider)
                 ContextRow("ASSIGN PIP APP 1", Icons.Default.PictureInPicture, accent, { onAssignPip(0) }, isDayMode = isDayMode)
                 if (pipAppPackages.getOrElse(0) { "" }.isNotEmpty()) {
                     HorizontalDivider(color = menuDivider)
                     ContextRow("CLEAR PIP APP 1", Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(0) }, isDayMode = isDayMode)
                 }
-                if (pipAppCount == 2) {
+                if (pipAppCount >= 2) {
                     HorizontalDivider(color = menuDivider)
                     ContextRow("ASSIGN PIP APP 2", Icons.Default.PictureInPicture, accent, { onAssignPip(1) }, isDayMode = isDayMode)
                     if (pipAppPackages.getOrElse(1) { "" }.isNotEmpty()) {
                         HorizontalDivider(color = menuDivider)
                         ContextRow("CLEAR PIP APP 2", Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(1) }, isDayMode = isDayMode)
+                    }
+                }
+                if (pipAppCount >= 3) {
+                    HorizontalDivider(color = menuDivider)
+                    ContextRow("ASSIGN PIP APP 3", Icons.Default.PictureInPicture, accent, { onAssignPip(2) }, isDayMode = isDayMode)
+                    if (pipAppPackages.getOrElse(2) { "" }.isNotEmpty()) {
+                        HorizontalDivider(color = menuDivider)
+                        ContextRow("CLEAR PIP APP 3", Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(2) }, isDayMode = isDayMode)
                     }
                 }
             }

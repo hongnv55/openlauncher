@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalTextInputService
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -96,8 +97,9 @@ fun AppLibraryScreen(
                 },
                 style         = MaterialTheme.typography.titleLarge,
                 color         = if (anyPickerMode) accent else headerColor,
-                letterSpacing = 3.sp,
-                fontSize      = 14.sp
+                fontWeight    = FontWeight.Bold,
+                letterSpacing = 2.sp,
+                fontSize      = 20.sp
             )
             if (!anyPickerMode) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -112,7 +114,7 @@ fun AppLibraryScreen(
                                         AppFilter.SYSTEM -> "System"
                                         AppFilter.ALL    -> "All"
                                     },
-                                    fontSize = 9.sp,
+                                    fontSize = 13.sp,
                                     letterSpacing = 0.5.sp
                                 )
                             },

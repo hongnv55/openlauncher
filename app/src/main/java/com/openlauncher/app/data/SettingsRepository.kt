@@ -52,8 +52,10 @@ class SettingsRepository(private val context: Context) {
         val SHOW_PIP              = booleanPreferencesKey("show_pip")
         val PIP_APP_PACKAGES_JSON = stringPreferencesKey("pip_app_packages_json")
         val PIP_PANE_SPLIT        = floatPreferencesKey("pip_pane_split")
+        val PIP_PANE_SPLIT2       = floatPreferencesKey("pip_pane_split2")
         val PIP_APP_COUNT         = intPreferencesKey("pip_app_count")
-        val PIP_PANES_REVERSED    = booleanPreferencesKey("pip_panes_reversed")
+        val PIP_PANE_ORDER_JSON   = stringPreferencesKey("pip_pane_order_json")
+        val AUTOSTART_PACKAGES_JSON = stringPreferencesKey("autostart_packages_json")
         val RADIO_PACKAGE         = stringPreferencesKey("radio_package")
         val ONBOARDING_COMPLETED  = booleanPreferencesKey("onboarding_completed")
         val SHOW_VITALS           = booleanPreferencesKey("show_vitals")
@@ -137,8 +139,18 @@ class SettingsRepository(private val context: Context) {
                     }.getOrNull()
                 } ?: defaults.pipAppPackages,
                 pipPaneSplit     = prefs[Keys.PIP_PANE_SPLIT]    ?: defaults.pipPaneSplit,
+                pipPaneSplit2    = prefs[Keys.PIP_PANE_SPLIT2]   ?: defaults.pipPaneSplit2,
                 pipAppCount      = prefs[Keys.PIP_APP_COUNT]     ?: defaults.pipAppCount,
-                pipPanesReversed = prefs[Keys.PIP_PANES_REVERSED] ?: defaults.pipPanesReversed,
+                pipPaneOrder     = prefs[Keys.PIP_PANE_ORDER_JSON]?.let {
+                    runCatching {
+                        gson.fromJson<List<Int>>(it, object : TypeToken<List<Int>>() {}.type)
+                    }.getOrNull()
+                } ?: defaults.pipPaneOrder,
+                autostartPackages = prefs[Keys.AUTOSTART_PACKAGES_JSON]?.let {
+                    runCatching {
+                        gson.fromJson<List<String>>(it, object : TypeToken<List<String>>() {}.type)
+                    }.getOrNull()
+                } ?: defaults.autostartPackages,
                 radioPackage     = prefs[Keys.RADIO_PACKAGE]    ?: defaults.radioPackage,
                 onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: defaults.onboardingCompleted,
                 showVitals       = prefs[Keys.SHOW_VITALS]      ?: defaults.showVitals,
@@ -206,8 +218,10 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.SHOW_PIP]           = s.showPip
             prefs[Keys.PIP_APP_PACKAGES_JSON] = gson.toJson(s.pipAppPackages)
             prefs[Keys.PIP_PANE_SPLIT]     = s.pipPaneSplit
+            prefs[Keys.PIP_PANE_SPLIT2]    = s.pipPaneSplit2
             prefs[Keys.PIP_APP_COUNT]      = s.pipAppCount
-            prefs[Keys.PIP_PANES_REVERSED] = s.pipPanesReversed
+            prefs[Keys.PIP_PANE_ORDER_JSON] = gson.toJson(s.pipPaneOrder)
+            prefs[Keys.AUTOSTART_PACKAGES_JSON] = gson.toJson(s.autostartPackages)
             prefs[Keys.RADIO_PACKAGE]      = s.radioPackage
             prefs[Keys.ONBOARDING_COMPLETED] = s.onboardingCompleted
             prefs[Keys.SHOW_VITALS]        = s.showVitals

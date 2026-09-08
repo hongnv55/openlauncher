@@ -42,6 +42,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -53,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -65,19 +67,26 @@ import kotlinx.coroutines.launch
 private val PANE_SPLIT_RANGE = 0.15f..0.85f
 private val DIVIDER_LAYOUT_WIDTH = 10.dp
 private val DIVIDER_TOUCH_WIDTH = 24.dp
-private val DIVIDER_GRIP_WIDTH = 4.dp
-private val DIVIDER_GRIP_HEIGHT = 200.dp
+private val DIVIDER_GRIP_WIDTH = 14.dp
+private val DIVIDER_GRIP_HEIGHT = 64.dp
 private val PIP_PANE_SHAPE = RoundedCornerShape(10.dp)
 private val PIP_PANE_BORDER_WIDTH = 1.5.dp
 private const val DIVIDER_INPUT_SETTLE_MS = 180L
 private const val SECOND_PANE_LAUNCH_DELAY_MS = 1_500L
+private const val THIRD_PANE_LAUNCH_DELAY_MS = 3_000L
 private const val APP_REVEAL_DELAY_MS = 1_200L
 
 /**
- * [appCount] 1 or 2 apps side-by-side. With 2, panes are split at
+ * [appCount] 1, 2, or 3 apps side-by-side. With 2, panes are split at
  * [splitFraction] (fraction of the pane area, excluding the divider, given to
- * slot 0) — drag the divider between them to resize. Each slot is
- * independently assignable/clearable.
+ * the first visual position). With 3, a second divider further splits
+ * whatever's left over at [splitFraction2] (fraction of the *remaining* area
+ * given to the second visual position — the third gets what's left). Drag
+ * either divider to resize; tap one to swap its two adjacent panes'
+ * positions. [paneOrder] maps visual position -> slot index (default
+ * `[0, 1, 2]`, i.e. slot N renders in position N); each slot is
+ * independently assignable/clearable regardless of where it currently
+ * displays.
  *
  * Apps render via true embedding — a private [VirtualDisplay] piped into a
  * plain [SurfaceView] inside this same view hierarchy — matching how the
@@ -101,6 +110,7 @@ fun PipWidget(
     packageNames: List<String>,
     appCount: Int,
     splitFraction: Float,
+    splitFraction2: Float = 0.5f,
     accent: Color,
     launcherBackground: Color = Color.Black,
     isDayMode: Boolean,
@@ -108,8 +118,9 @@ fun PipWidget(
     isEditing: Boolean,
     onAssign: (slot: Int) -> Unit,
     onSplitChange: (Float) -> Unit,
-    onSwap: () -> Unit = {},
-    panesReversed: Boolean = false,
+    onSplitChange2: (Float) -> Unit = {},
+    onSwap: (dividerIndex: Int) -> Unit = {},
+    paneOrder: List<Int> = listOf(0, 1, 2),
     modifier: Modifier = Modifier
 ) {
     val pkg0 = packageNames.getOrElse(0) { "" }
@@ -131,42 +142,92 @@ fun PipWidget(
     }
 
     val pkg1 = packageNames.getOrElse(1) { "" }
+    val pkg2 = packageNames.getOrElse(2) { "" }
+    val showThird = appCount >= 3
     val density = LocalDensity.current
 
-    // Live position while the divider is being dragged; null when not dragging.
+    // Live position while a divider is being dragged; null when neither is.
+    // Both dividers share this single pair — only one can be dragged at a
+    // time — tagged with which divider (0 or 1) owns the current drag so
+    // each divider's own preview grip only lights up for its own gesture.
     var previewFraction by remember { mutableStateOf<Float?>(null) }
+    var previewDividerIndex by remember { mutableIntStateOf(0) }
     var localCommittedFraction by remember {
         mutableFloatStateOf(splitFraction.coerceIn(PANE_SPLIT_RANGE))
+    }
+    var localCommittedFraction2 by remember {
+        mutableFloatStateOf(splitFraction2.coerceIn(PANE_SPLIT_RANGE))
     }
     var paneInputLocked by remember { mutableStateOf(false) }
     var unlockInputJob by remember { mutableStateOf<Job?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(splitFraction) {
-        if (previewFraction == null) {
+        if (!(previewFraction != null && previewDividerIndex == 0)) {
             localCommittedFraction = splitFraction.coerceIn(PANE_SPLIT_RANGE)
+        }
+    }
+    LaunchedEffect(splitFraction2) {
+        if (!(previewFraction != null && previewDividerIndex == 1)) {
+            localCommittedFraction2 = splitFraction2.coerceIn(PANE_SPLIT_RANGE)
+        }
+    }
+
+    fun beginDrag(dividerIndex: Int, startFraction: Float) {
+        unlockInputJob?.cancel()
+        paneInputLocked = true
+        previewDividerIndex = dividerIndex
+        previewFraction = startFraction
+    }
+
+    fun endDrag() {
+        previewFraction = null
+        unlockInputJob = coroutineScope.launch {
+            delay(DIVIDER_INPUT_SETTLE_MS)
+            paneInputLocked = false
         }
     }
 
     BoxWithConstraints(modifier = modifier) {
-        val paneAreaWidth = maxWidth - DIVIDER_LAYOUT_WIDTH
+        val dividerCount = if (showThird) 2 else 1
+        val paneAreaWidth = maxWidth - DIVIDER_LAYOUT_WIDTH * dividerCount
         val paneAreaWidthPx = with(density) { paneAreaWidth.toPx() }
-        val committedFraction = localCommittedFraction.coerceIn(PANE_SPLIT_RANGE)
-        val leftWidth = paneAreaWidth * committedFraction
-        val rightWidth = paneAreaWidth - leftWidth
+
+        val fraction1 = localCommittedFraction.coerceIn(PANE_SPLIT_RANGE)
+        val width0 = paneAreaWidth * fraction1
+        val remainingAfter0 = paneAreaWidth - width0
+        val remainingAfter0Px = with(density) { remainingAfter0.toPx() }
+
+        val fraction2 = localCommittedFraction2.coerceIn(PANE_SPLIT_RANGE)
+        val width1 = if (showThird) remainingAfter0 * fraction2 else remainingAfter0
+        val width2 = if (showThird) remainingAfter0 - width1 else 0.dp
+
+        val offset0 = 0.dp
+        val offset1 = width0 + DIVIDER_LAYOUT_WIDTH
+        val offset2 = offset1 + width1 + DIVIDER_LAYOUT_WIDTH
+
+        val positionOffsets = listOf(offset0, offset1, offset2)
+        val positionWidths = listOf(width0, width1, width2)
+
+        // slot0/slot1/slot2 are declared here in fixed order, always — never
+        // reordered — and only ever positioned via offset()/width(). Reordering
+        // which one comes first in a Row (even wrapped in a matching key())
+        // still moved the underlying SurfaceView within its real parent
+        // ViewGroup, which detaches and reattaches it — triggering a real
+        // surfaceDestroyed/surfaceCreated cycle (seen as the embedded app
+        // briefly reloading) despite Compose-level state surviving. Swapping
+        // only the offset/width — a slot's position and size, not its place
+        // in the tree — never touches the View's attachment at all, so
+        // paneOrder can freely rearrange all three sides and every app stays
+        // on screen the whole time. Adding/removing the third pane (showThird
+        // flipping) only ever appends/removes slot2 at the end — it never
+        // reorders slot0/slot1 relative to each other either.
+        fun positionOf(slot: Int): Int = paneOrder.indexOf(slot).let { if (it >= 0) it else slot }
+
         Box(Modifier.fillMaxSize()) {
-            // slot0/slot1 are declared here in fixed order, always — never
-            // reordered — and only ever positioned via offset()/width().
-            // Reordering which one comes first in a Row (even wrapped in a
-            // matching key()) still moved the underlying SurfaceView within
-            // its real parent ViewGroup, which detaches and reattaches it —
-            // triggering a real surfaceDestroyed/surfaceCreated cycle (seen
-            // as the embedded app briefly reloading) despite Compose-level
-            // state surviving. Swapping only the offset/width — the pane's
-            // position and size, not its place in the tree — never touches
-            // the View's attachment at all, so panesReversed can freely swap
-            // sides both apps stay on screen the whole time.
-            val rightOffset = leftWidth + DIVIDER_LAYOUT_WIDTH
+            val pos0 = positionOf(0)
+            val pos1 = positionOf(1)
+
             PipPane(
                 packageName = pkg0,
                 inputEnabled = isActive && !isEditing && !paneInputLocked,
@@ -176,8 +237,8 @@ fun PipWidget(
                 launchDelayMs = 0L,
                 onAssign = { onAssign(0) },
                 modifier = Modifier
-                    .offset(x = if (panesReversed) rightOffset else 0.dp)
-                    .width(if (panesReversed) rightWidth else leftWidth)
+                    .offset(x = positionOffsets[pos0])
+                    .width(positionWidths[pos0])
                     .fillMaxHeight()
             )
             PipPane(
@@ -189,90 +250,88 @@ fun PipWidget(
                 launchDelayMs = SECOND_PANE_LAUNCH_DELAY_MS,
                 onAssign = { onAssign(1) },
                 modifier = Modifier
-                    .offset(x = if (panesReversed) 0.dp else rightOffset)
-                    .width(if (panesReversed) leftWidth else rightWidth)
+                    .offset(x = positionOffsets[pos1])
+                    .width(positionWidths[pos1])
                     .fillMaxHeight()
             )
-            Box(
-                modifier = Modifier
-                    .offset(x = leftWidth)
-                    .width(DIVIDER_LAYOUT_WIDTH)
-                    .fillMaxHeight()
-            )
-
-            Box(
-                modifier = Modifier
-                    .offset(x = leftWidth + DIVIDER_LAYOUT_WIDTH / 2 - DIVIDER_TOUCH_WIDTH / 2)
-                    .width(DIVIDER_TOUCH_WIDTH)
-                    .fillMaxHeight()
-                    .pointerInput(paneAreaWidthPx, committedFraction) {
-                        var dragStartFraction = committedFraction
-                        var totalDragPx = 0f
-                        detectDragGestures(
-                            onDragStart = {
-                                unlockInputJob?.cancel()
-                                paneInputLocked = true
-                                dragStartFraction = committedFraction
-                                totalDragPx = 0f
-                                previewFraction = dragStartFraction
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                if (paneAreaWidthPx > 0f) {
-                                    totalDragPx += dragAmount.x
-                                    previewFraction = (dragStartFraction + totalDragPx / paneAreaWidthPx)
-                                        .coerceIn(PANE_SPLIT_RANGE)
-                                }
-                            },
-                            onDragEnd = {
-                                previewFraction?.let { committed ->
-                                    localCommittedFraction = committed
-                                    onSplitChange(committed)
-                                }
-                                previewFraction = null
-                                unlockInputJob = coroutineScope.launch {
-                                    delay(DIVIDER_INPUT_SETTLE_MS)
-                                    paneInputLocked = false
-                                }
-                            },
-                            onDragCancel = {
-                                previewFraction = null
-                                paneInputLocked = false
-                            }
-                        )
-                    }
-                    // Separate from the drag detector above: a plain tap (no
-                    // touch-slop movement) never triggers detectDragGestures'
-                    // callbacks, so it's free to swap the two apps' slots
-                    // instead — a quick way to re-order without a full drag.
-                    .pointerInput(Unit) {
-                        detectTapGestures(onTap = { onSwap() })
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                // Derived from the launcher's own background — same idea as
-                // the sidebar — rather than a fixed white base, so it stays
-                // in the same palette as whatever background the user picks.
-                // Needs a much stronger accent mix than the sidebar's tint
-                // though: unlike the sidebar (a large area, tone alone reads
-                // fine), this is a tiny 6dp-wide handle that has to read as
-                // "grab this" at a glance, not just as a subtly-shaded area.
-                val gripColor = lerp(launcherBackground, accent, 0.5f)
-                Box(
-                    Modifier
-                        .width(DIVIDER_GRIP_WIDTH)
-                        .height(DIVIDER_GRIP_HEIGHT)
-                        .clip(RoundedCornerShape(DIVIDER_GRIP_WIDTH / 2))
-                        .background(
-                            if (previewFraction != null) SolidColor(Color.Transparent)
-                            else SolidColor(gripColor)
-                        )
+            if (showThird) {
+                val pos2 = positionOf(2)
+                PipPane(
+                    packageName = pkg2,
+                    inputEnabled = isActive && !isEditing && !paneInputLocked,
+                    accent = accent,
+                    isDayMode = isDayMode,
+                    isEditing = isEditing,
+                    launchDelayMs = THIRD_PANE_LAUNCH_DELAY_MS,
+                    onAssign = { onAssign(2) },
+                    modifier = Modifier
+                        .offset(x = positionOffsets[pos2])
+                        .width(positionWidths[pos2])
+                        .fillMaxHeight()
                 )
             }
 
+            // Gap fillers — purely visual placeholders, matching the touch
+            // boxes below in position, no content of their own.
+            Box(
+                modifier = Modifier
+                    .offset(x = width0)
+                    .width(DIVIDER_LAYOUT_WIDTH)
+                    .fillMaxHeight()
+            )
+            if (showThird) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = width0 + DIVIDER_LAYOUT_WIDTH + width1)
+                        .width(DIVIDER_LAYOUT_WIDTH)
+                        .fillMaxHeight()
+                )
+            }
+
+            PaneDivider(
+                gapStartX = width0,
+                committedFraction = fraction1,
+                referenceWidthPx = paneAreaWidthPx,
+                isDragging = previewFraction != null && previewDividerIndex == 0,
+                onDragStart = { beginDrag(0, fraction1) },
+                onPreviewChange = { previewFraction = it },
+                onCommit = { committed ->
+                    localCommittedFraction = committed
+                    onSplitChange(committed)
+                },
+                onDragEnd = ::endDrag,
+                onTap = { onSwap(0) },
+                accent = accent,
+                isDayMode = isDayMode
+            )
+            if (showThird) {
+                PaneDivider(
+                    gapStartX = width0 + DIVIDER_LAYOUT_WIDTH + width1,
+                    committedFraction = fraction2,
+                    referenceWidthPx = remainingAfter0Px,
+                    isDragging = previewFraction != null && previewDividerIndex == 1,
+                    onDragStart = { beginDrag(1, fraction2) },
+                    onPreviewChange = { previewFraction = it },
+                    onCommit = { committed ->
+                        localCommittedFraction2 = committed
+                        onSplitChange2(committed)
+                    },
+                    onDragEnd = ::endDrag,
+                    onTap = { onSwap(1) },
+                    accent = accent,
+                    isDayMode = isDayMode
+                )
+            }
+
+            // Live-drag preview grip for whichever divider is currently being
+            // dragged — positioned in the same coordinate space as that
+            // divider's own gap (position0/1 for divider 0, the remaining
+            // area after pane0 for divider 1).
             previewFraction?.let { preview ->
                 val previewGripWidth = DIVIDER_GRIP_WIDTH
-                val previewOffsetX = paneAreaWidth * preview +
+                val previewBase = if (previewDividerIndex == 0) 0.dp else offset1
+                val previewAreaWidth = if (previewDividerIndex == 0) paneAreaWidth else remainingAfter0
+                val previewOffsetX = previewBase + previewAreaWidth * preview +
                     DIVIDER_LAYOUT_WIDTH / 2 - previewGripWidth / 2
                 Box(
                     Modifier
@@ -285,6 +344,101 @@ fun PipWidget(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PaneDivider(
+    gapStartX: Dp,
+    committedFraction: Float,
+    referenceWidthPx: Float,
+    isDragging: Boolean,
+    onDragStart: () -> Unit,
+    onPreviewChange: (Float?) -> Unit,
+    onCommit: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onTap: () -> Unit,
+    accent: Color,
+    isDayMode: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .offset(x = gapStartX + DIVIDER_LAYOUT_WIDTH / 2 - DIVIDER_TOUCH_WIDTH / 2)
+            .width(DIVIDER_TOUCH_WIDTH)
+            .fillMaxHeight()
+            .pointerInput(referenceWidthPx, committedFraction) {
+                var dragStartFraction = committedFraction
+                var totalDragPx = 0f
+                detectDragGestures(
+                    onDragStart = {
+                        dragStartFraction = committedFraction
+                        totalDragPx = 0f
+                        onDragStart()
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        if (referenceWidthPx > 0f) {
+                            totalDragPx += dragAmount.x
+                            onPreviewChange(
+                                (dragStartFraction + totalDragPx / referenceWidthPx)
+                                    .coerceIn(PANE_SPLIT_RANGE)
+                            )
+                        }
+                    },
+                    onDragEnd = {
+                        onCommit((dragStartFraction + totalDragPx / referenceWidthPx.coerceAtLeast(1f))
+                            .coerceIn(PANE_SPLIT_RANGE))
+                        onPreviewChange(null)
+                        onDragEnd()
+                    },
+                    onDragCancel = {
+                        onPreviewChange(null)
+                        onDragEnd()
+                    }
+                )
+            }
+            // Separate from the drag detector above: a plain tap (no
+            // touch-slop movement) never triggers detectDragGestures'
+            // callbacks, so it's free to swap this divider's two adjacent
+            // apps' slots instead — a quick way to re-order without a drag.
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { onTap() })
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        // No accent here — a fixed neutral instead, chosen only to read
+        // clearly against both the (usually light) pane content and the
+        // launcher background, not to match either. Light fill (not dark)
+        // with a thin border for definition — plus a real but tight shadow —
+        // reads as a physical button cap rather than the softer, hazier look
+        // a wider-blur shadow gives at this small size.
+        val gripShape = RoundedCornerShape(DIVIDER_GRIP_WIDTH / 2)
+        val gripColor = if (isDayMode) Color(0xFFF5F6F8) else Color(0xFFE2E4E8)
+        val gripBorder = if (isDayMode) Color(0xFFAAAFB8) else Color(0xFF8A8E96)
+        Box(
+            Modifier
+                .width(DIVIDER_GRIP_WIDTH)
+                .height(DIVIDER_GRIP_HEIGHT)
+                .then(
+                    if (isDragging) Modifier
+                    else Modifier.shadow(
+                        elevation   = 2.dp,
+                        shape       = gripShape,
+                        ambientColor = Color.Black.copy(alpha = 0.2f),
+                        spotColor    = Color.Black.copy(alpha = 0.2f)
+                    )
+                )
+                .clip(gripShape)
+                .background(
+                    if (isDragging) SolidColor(Color.Transparent)
+                    else SolidColor(gripColor)
+                )
+                .border(
+                    width = if (isDragging) 0.dp else 1.dp,
+                    color = if (isDragging) Color.Transparent else gripBorder,
+                    shape = gripShape
+                )
+        )
     }
 }
 
@@ -315,6 +469,12 @@ private fun PipPane(
     if (packageName.isEmpty()) {
         Column(
             modifier = modifier
+                .shadow(
+                    elevation    = 6.dp,
+                    shape        = PIP_PANE_SHAPE,
+                    ambientColor = Color.Black.copy(alpha = 0.4f),
+                    spotColor    = Color.Black.copy(alpha = 0.4f)
+                )
                 .clip(PIP_PANE_SHAPE)
                 .background(
                     Brush.linearGradient(
@@ -380,6 +540,12 @@ private fun PipPane(
 
     Box(
         modifier = modifier
+            .shadow(
+                elevation    = 6.dp,
+                shape        = PIP_PANE_SHAPE,
+                ambientColor = Color.Black.copy(alpha = 0.4f),
+                spotColor    = Color.Black.copy(alpha = 0.4f)
+            )
             .clip(PIP_PANE_SHAPE)
             .background(tileBg)
             .border(PIP_PANE_BORDER_WIDTH, paneOuterStroke, PIP_PANE_SHAPE),
