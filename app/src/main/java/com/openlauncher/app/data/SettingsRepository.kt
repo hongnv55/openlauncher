@@ -21,6 +21,8 @@ class SettingsRepository(private val context: Context) {
         val VEHICLE_NAME       = stringPreferencesKey("vehicle_name")
         val ACCENT_COLOR       = intPreferencesKey("accent_color")
         val BG_COLOR           = intPreferencesKey("bg_color")
+        val USE_CUSTOM_SIDEBAR_COLOR = booleanPreferencesKey("use_custom_sidebar_color")
+        val SIDEBAR_COLOR      = intPreferencesKey("sidebar_color")
         val FONT_COLOR         = intPreferencesKey("font_color")
         val WALLPAPER_URI      = stringPreferencesKey("wallpaper_uri")
         val FONT_BOLD          = booleanPreferencesKey("font_bold")
@@ -104,6 +106,8 @@ class SettingsRepository(private val context: Context) {
                 vehicleName    = prefs[Keys.VEHICLE_NAME]     ?: defaults.vehicleName,
                 accentColor    = prefs[Keys.ACCENT_COLOR]     ?: defaults.accentColor,
                 backgroundColor = prefs[Keys.BG_COLOR]        ?: defaults.backgroundColor,
+                useCustomSidebarColor = prefs[Keys.USE_CUSTOM_SIDEBAR_COLOR] ?: defaults.useCustomSidebarColor,
+                sidebarColor    = prefs[Keys.SIDEBAR_COLOR]   ?: defaults.sidebarColor,
                 fontColor      = prefs[Keys.FONT_COLOR]       ?: defaults.fontColor,
                 wallpaperUri   = prefs[Keys.WALLPAPER_URI]    ?: defaults.wallpaperUri,
                 fontBold       = prefs[Keys.FONT_BOLD]        ?: defaults.fontBold,
@@ -188,6 +192,8 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.VEHICLE_NAME]       = s.vehicleName
             prefs[Keys.ACCENT_COLOR]       = s.accentColor
             prefs[Keys.BG_COLOR]           = s.backgroundColor
+            prefs[Keys.USE_CUSTOM_SIDEBAR_COLOR] = s.useCustomSidebarColor
+            prefs[Keys.SIDEBAR_COLOR]      = s.sidebarColor
             prefs[Keys.FONT_COLOR]         = s.fontColor
             prefs[Keys.WALLPAPER_URI]      = s.wallpaperUri
             prefs[Keys.FONT_BOLD]          = s.fontBold

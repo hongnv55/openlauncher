@@ -42,6 +42,14 @@ import com.openlauncher.app.ui.components.ConfirmDialog
 
 // Resolved at call site via LocalDayMode — see SettingsDivider / SettingsSection
 
+// Temporarily hidden per request — flip back to true to restore. Sidebar
+// Position moved into "Appearance" (still shown); these are the only rows
+// actually removed from view.
+private const val SHOW_VEHICLE_NAME_ROW      = false
+private const val SHOW_UNIT_SYSTEM_ROW       = false
+private const val SHOW_GPS_CALIBRATION_SECTION = false
+private const val SHOW_UPDATES_SECTION       = false
+
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
@@ -60,6 +68,7 @@ fun SettingsScreen(
     var showAccentPicker      by remember { mutableStateOf(false) }
     var showBgPicker          by remember { mutableStateOf(false) }
     var showGradientEndPicker by remember { mutableStateOf(false) }
+    var showSidebarColorPicker by remember { mutableStateOf(false) }
     var showFontColorPicker   by remember { mutableStateOf(false) }
 
     // OpenDocument (not GetContent): only SAF document URIs carry a persistable
@@ -243,7 +252,9 @@ fun SettingsScreen(
         }
 
         // ── Vehicle Name ─────────────────────────────────────────────────────
+        if (SHOW_VEHICLE_NAME_ROW || SHOW_UNIT_SYSTEM_ROW) {
         SettingsSection("Vehicle") {
+            if (SHOW_VEHICLE_NAME_ROW) {
             var nameInput by remember(settings.vehicleName) { mutableStateOf(settings.vehicleName) }
             SettingsRow(
                 label    = "Vehicle Name",
@@ -268,59 +279,10 @@ fun SettingsScreen(
                 }
             }
 
-            SettingsDivider()
-
-            SettingsRow(
-                label    = "Sidebar Position",
-                sublabel = when (settings.sidebarPosition) {
-                    SidebarPosition.LEFT   -> "Left side"
-                    SidebarPosition.RIGHT  -> "Right side"
-                    SidebarPosition.BOTTOM -> "Bottom"
-                },
-                icon     = Icons.Default.SwapHoriz
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    SidebarPosition.entries.forEach { pos ->
-                        FilterChip(
-                            selected = settings.sidebarPosition == pos,
-                            onClick  = { onUpdate { copy(sidebarPosition = pos) } },
-                            label    = {
-                                Text(
-                                    when (pos) {
-                                        SidebarPosition.LEFT   -> "Left"
-                                        SidebarPosition.RIGHT  -> "Right"
-                                        SidebarPosition.BOTTOM -> "Bottom"
-                                    },
-                                    fontSize = 9.sp,
-                                    letterSpacing = 0.5.sp
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = accent,
-                                selectedLabelColor     = Color.Black
-                            )
-                        )
-                    }
-                }
+            if (SHOW_UNIT_SYSTEM_ROW) SettingsDivider()
             }
 
-            if (settings.sidebarPosition == SidebarPosition.BOTTOM) {
-                SettingsDivider()
-                SettingsRow(
-                    label    = "Shortcuts Side",
-                    sublabel = if (settings.bottomBarShortcutsRight) "Right — nav buttons on left" else "Left — nav buttons on right",
-                    icon     = Icons.Default.FormatAlignRight
-                ) {
-                    Switch(
-                        checked         = settings.bottomBarShortcutsRight,
-                        onCheckedChange = { onUpdate { copy(bottomBarShortcutsRight = it) } },
-                        colors          = switchColors(accent)
-                    )
-                }
-            }
-
-            SettingsDivider()
-
+            if (SHOW_UNIT_SYSTEM_ROW) {
             SettingsRow(label = "Unit System", sublabel = if (settings.unitSystem == UnitSystem.METRIC) "Metric (°C, km)" else "Imperial (°F, mi)", icon = Icons.Default.Straighten) {
                 Row {
                     FilterChip(
@@ -344,6 +306,8 @@ fun SettingsScreen(
                     )
                 }
             }
+            }
+        }
         }
 
         // ── Sidebar Shortcuts ─────────────────────────────────────────────────
@@ -585,6 +549,59 @@ fun SettingsScreen(
 
             SettingsDivider()
 
+            // Sidebar Position — moved here from "Vehicle" so it lives with
+            // the rest of the visual/layout controls.
+            SettingsRow(
+                label    = "Sidebar Position",
+                sublabel = when (settings.sidebarPosition) {
+                    SidebarPosition.LEFT   -> "Left side"
+                    SidebarPosition.RIGHT  -> "Right side"
+                    SidebarPosition.BOTTOM -> "Bottom"
+                },
+                icon     = Icons.Default.SwapHoriz
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SidebarPosition.entries.forEach { pos ->
+                        FilterChip(
+                            selected = settings.sidebarPosition == pos,
+                            onClick  = { onUpdate { copy(sidebarPosition = pos) } },
+                            label    = {
+                                Text(
+                                    when (pos) {
+                                        SidebarPosition.LEFT   -> "Left"
+                                        SidebarPosition.RIGHT  -> "Right"
+                                        SidebarPosition.BOTTOM -> "Bottom"
+                                    },
+                                    fontSize = 9.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = accent,
+                                selectedLabelColor     = Color.Black
+                            )
+                        )
+                    }
+                }
+            }
+
+            if (settings.sidebarPosition == SidebarPosition.BOTTOM) {
+                SettingsDivider()
+                SettingsRow(
+                    label    = "Shortcuts Side",
+                    sublabel = if (settings.bottomBarShortcutsRight) "Right — nav buttons on left" else "Left — nav buttons on right",
+                    icon     = Icons.Default.FormatAlignRight
+                ) {
+                    Switch(
+                        checked         = settings.bottomBarShortcutsRight,
+                        onCheckedChange = { onUpdate { copy(bottomBarShortcutsRight = it) } },
+                        colors          = switchColors(accent)
+                    )
+                }
+            }
+
+            SettingsDivider()
+
             // Accent color
             SettingsRow(
                 label    = "Accent Color",
@@ -649,6 +666,40 @@ fun SettingsScreen(
                             modifier = Modifier.height(28.dp)
                         ) {
                             Text("DEFAULT", color = accent, fontSize = 9.sp, letterSpacing = 1.sp)
+                        }
+                    }
+                }
+            }
+
+            SettingsDivider()
+
+            // Sidebar color — independent of Background: when off, the
+            // sidebar auto-derives an "elevated card" tint from whatever
+            // background is picked above (see Sidebar.kt); this lets that be
+            // overridden with an exact color instead.
+            SettingsRow(
+                label    = "Sidebar Color",
+                sublabel = if (settings.useCustomSidebarColor) "Custom" else "Auto (from background)",
+                icon     = Icons.Default.ViewSidebar
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment     = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(settings.sidebarColor))
+                            .clickable { showSidebarColorPicker = true }
+                    )
+                    if (settings.useCustomSidebarColor) {
+                        TextButton(
+                            onClick = { onUpdate { copy(useCustomSidebarColor = false) } },
+                            contentPadding = PaddingValues(horizontal = 6.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("AUTO", color = accent, fontSize = 9.sp, letterSpacing = 1.sp)
                         }
                     }
                 }
@@ -875,6 +926,7 @@ fun SettingsScreen(
         }
 
         // ── GPS & Calibration ───────────────────────────────────────────────
+        if (SHOW_GPS_CALIBRATION_SECTION) {
         SettingsSection("GPS & Calibration") {
             var calibrationStatus by remember { mutableStateOf<String?>(null) }
             val coroutineScope = rememberCoroutineScope()
@@ -959,8 +1011,10 @@ fun SettingsScreen(
                 )
             }
         }
+        }
 
         // ── Updates ──────────────────────────────────────────────────────────
+        if (SHOW_UPDATES_SECTION) {
         SettingsSection("Updates") {
             SettingsButton(
                 label    = "Check for Updates",
@@ -972,6 +1026,7 @@ fun SettingsScreen(
                     context.startActivity(intent)
                 }
             )
+        }
         }
 
         // ── Maintenance ──────────────────────────────────────────────────────
@@ -1061,6 +1116,22 @@ fun SettingsScreen(
                 } 
             },
             onDismiss       = { showBgPicker = false }
+        )
+    }
+
+    if (showSidebarColorPicker) {
+        ColorPickerDialog(
+            title           = "Sidebar Color",
+            initialColor    = Color(settings.sidebarColor),
+            onColorSelected = { c ->
+                onUpdate {
+                    copy(
+                        sidebarColor = c.toArgb(),
+                        useCustomSidebarColor = true
+                    )
+                }
+            },
+            onDismiss       = { showSidebarColorPicker = false }
         )
     }
 

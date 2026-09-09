@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -46,6 +47,9 @@ import com.openlauncher.app.ui.theme.LocalDayMode
 import kotlin.math.roundToInt
 
 private val ICON_SIZE   = 30.dp
+// Nav buttons (Home/Settings/Apps) no longer sit in a clipping chip, so this
+// can run bigger than ICON_SIZE without getting cut off at the chip's edge.
+private val NAV_ICON_SIZE = 46.dp
 private val SLOT_SIZE   = 52.dp
 private val SIDEBAR_CORNER  = 12.dp
 private val NAV_CHIP_SIZE   = 46.dp
@@ -67,19 +71,7 @@ fun Sidebar(
 ) {
     val isDayMode    = LocalDayMode.current
     val accent       = Color(settings.accentColor)
-    // Derived from the launcher's own background, not a fixed gray — a
-    // lighter tint of it (elevation via tone, not a hard-coded color), so
-    // the sidebar stays in the same palette as whatever background the user
-    // picks instead of only matching the one default background it was
-    // originally tuned against. Still lighter than the background itself so
-    // the card boundary (SIDEBAR_RADIUS + the gap around it) stays visible
-    // rather than the sidebar blending into its own margin.
-    val sidebarBg    = if (settings.useCustomBackgroundColor) {
-        val customBg = Color(settings.backgroundColor)
-        if (isDayMode) lerp(customBg, Color.White, 0.8f) else lerp(customBg, Color.White, 0.55f)
-    } else {
-        if (isDayMode) Color(0xFFE0E0E0) else Color.Black.copy(alpha = 0.4f)
-    }
+    val sidebarBg    = settings.resolveSidebarColor(isDayMode)
     val iconInactive = if (isDayMode) Color(0xFF777777) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
     val density      = LocalDensity.current
     val slotSizePx   = with(density) { SLOT_SIZE.toPx() }
@@ -113,6 +105,7 @@ fun Sidebar(
             ShortcutSlot(
                 shortcut        = shortcut,
                 accent          = accent,
+                sidebarBg       = sidebarBg,
                 resolvedIcon    = if (shortcut.packageName.isNotEmpty())
                                       installedIconFor(shortcut.packageName) else null,
                 isDragging      = isDragging,
@@ -152,7 +145,7 @@ fun Sidebar(
             isHorizontal = isHorizontal,
             onClick      = { onNavigate(NavDestination.APP_LIBRARY) }
         )
-        if (!isHorizontal) Spacer(Modifier.height(10.dp))
+        if (!isHorizontal) Spacer(Modifier.height(6.dp))
         NavButton(
             icon         = Icons.Default.Settings,
             label        = "Settings",
@@ -162,7 +155,7 @@ fun Sidebar(
             isHorizontal = isHorizontal,
             onClick      = { onNavigate(NavDestination.SETTINGS) }
         )
-        if (!isHorizontal) Spacer(Modifier.height(10.dp))
+        if (!isHorizontal) Spacer(Modifier.height(6.dp))
         NavButton(
             icon         = Icons.Default.Home,
             label        = "Home",
@@ -286,8 +279,7 @@ fun Sidebar(
                     .padding(horizontal = 12.dp)
                     .width(32.dp),
                 thickness = 1.dp,
-                color     = if (isDayMode) Color.Black.copy(alpha = 0.08f)
-                            else Color.White.copy(alpha = 0.10f)
+                color     = Color.White.copy(alpha = 0.35f)
             )
             Spacer(Modifier.height(8.dp))
             navButtons()
@@ -336,6 +328,7 @@ fun Sidebar(
 private fun ShortcutSlot(
     shortcut: ShortcutConfig,
     accent: Color,
+    sidebarBg: Color,
     resolvedIcon: Drawable?,
     isDragging: Boolean,
     dragTranslation: Float,
@@ -404,7 +397,24 @@ private fun ShortcutSlot(
                 )
             }
     ) {
-        val iconInactive = if (LocalDayMode.current) Color(0xFF777777) else Color(0xFF3A3A3A)
+        val isDayMode    = LocalDayMode.current
+        val iconInactive = if (isDayMode) Color(0xFF777777) else Color(0xFF3A3A3A)
+        // Same chip footprint/radius as NavButton below, always visible (not
+        // just on an "active" state — shortcuts don't have one) so a bare
+        // 30dp glyph doesn't float alone in a 52dp slot, reading noticeably
+        // sparser/smaller than the nav icons right below it, which sit
+        // inside their own chip. A subtle lighter step off the sidebar's own
+        // color (not a contrasting swatch) — close enough in tone to still
+        // read as part of the same sidebar, just a hair "raised" toward a
+        // light source, the way a bevel/highlight implies elevation.
+        val chipBg = lerp(sidebarBg, Color.White, 0.12f)
+        Box(
+            modifier = Modifier
+                .size(NAV_CHIP_SIZE)
+                .clip(NAV_CHIP_RADIUS)
+                .background(chipBg),
+            contentAlignment = Alignment.Center
+        ) {
         val override = shortcut.customIconOverride
         when {
             override != null && override != DefaultShortcutIcon.NONE -> {
@@ -423,7 +433,7 @@ private fun ShortcutSlot(
                     painter            = BitmapPainter(bmp.asImageBitmap()),
                     contentDescription = shortcut.label,
                     tint               = Color.Unspecified,
-                    modifier           = Modifier.size(34.dp)
+                    modifier           = Modifier.size(30.dp)
                 )
             }
             shortcut.isDefault -> {
@@ -438,10 +448,11 @@ private fun ShortcutSlot(
                 Icon(
                     imageVector        = Icons.Default.Add,
                     contentDescription = "Add shortcut",
-                    tint               = if (LocalDayMode.current) Color(0xFFBBBBBB) else Color(0xFF252525),
+                    tint               = if (isDayMode) Color(0xFFBBBBBB) else Color(0xFF252525),
                     modifier           = Modifier.size(ICON_SIZE)
                 )
             }
+        }
         }
     }
 }
@@ -574,6 +585,10 @@ private fun NavButton(
     isHorizontal: Boolean = false,
     onClick: () -> Unit
 ) {
+    // No chip/box around the icon — nothing to clip it to, so it can be
+    // sized up freely — active state instead reads off a small bar under the
+    // icon (reserved at fixed size always, just transparent when inactive,
+    // so toggling active never shifts the icon's position).
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -583,18 +598,23 @@ private fun NavButton(
             )
             .clickable(onClick = onClick)
     ) {
-        Box(
-            modifier = Modifier
-                .size(NAV_CHIP_SIZE)
-                .clip(NAV_CHIP_RADIUS)
-                .background(if (isActive) accent.copy(alpha = 0.16f) else Color.Transparent),
-            contentAlignment = Alignment.Center
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector        = icon,
                 contentDescription = label,
                 tint               = if (isActive) accent else iconInactive,
-                modifier           = Modifier.size(ICON_SIZE)
+                modifier           = Modifier.size(NAV_ICON_SIZE)
+            )
+            Spacer(Modifier.height(0.dp))
+            Box(
+                modifier = Modifier
+                    .width(28.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .background(if (isActive) accent else Color.Transparent)
             )
         }
     }
@@ -636,4 +656,30 @@ fun DefaultShortcutIcon.toIcon(): ImageVector = when (this) {
     // Web / location
     DefaultShortcutIcon.GLOBE       -> Icons.Default.Language
     DefaultShortcutIcon.NONE        -> Icons.Default.Apps
+}
+
+// Shared with PipWidget's divider grip (see HomeScreen.kt/PipWidget.kt) so
+// that grip always matches whatever color the sidebar itself actually ends
+// up rendering — auto-derived from the background, or the exact color when
+// useCustomSidebarColor overrides it — rather than tracking it separately.
+fun AppSettings.resolveSidebarColor(isDayMode: Boolean): Color {
+    // Derived from the launcher's own background, not a fixed gray — a
+    // lighter tint of it (elevation via tone, not a hard-coded color), so
+    // the sidebar stays in the same palette as whatever background the user
+    // picks. How much lighter scales with how dark the background already
+    // is, rather than a fixed day/night split: a near-black background only
+    // needs a small lift to read as an elevated card (lifting it 80% of the
+    // way to white — right for the original pale default — would blow a dark
+    // background out to a stark near-white slab instead). An already-light
+    // background still gets pushed further toward white so it stays visibly
+    // lighter than its own backdrop.
+    return if (useCustomSidebarColor) {
+        Color(sidebarColor)
+    } else if (useCustomBackgroundColor) {
+        val customBg = Color(backgroundColor)
+        val liftFraction = 0.18f + (0.8f - 0.18f) * customBg.luminance().coerceIn(0f, 1f)
+        lerp(customBg, Color.White, liftFraction)
+    } else {
+        if (isDayMode) Color(0xFFE0E0E0) else Color.Black.copy(alpha = 0.4f)
+    }
 }

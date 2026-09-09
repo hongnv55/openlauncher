@@ -65,10 +65,12 @@ data class WidgetConfig(
 data class AppSettings(
     val vehicleName: String = "MY CAR",
     val accentColor: Int = Color(0xFF32FAA9).toArgb(),
-    // Deliberately a shade darker than typical white/light app chrome (not
-    // near-white like before) so the gap+border frame around PIP panes in
-    // HomeScreen actually reads as a frame instead of blending into it
-    val backgroundColor: Int = Color(0xFFC7CCD6).toArgb(),
+    // A near-black, cool-toned graphite rather than flat #000000 (which reads
+    // as dead/cheap) or the earlier pale lavender-gray (too close in
+    // brightness to most embedded apps' own white UI, so the gap/border
+    // frame around PIP panes barely read as a frame at all). Dark enough
+    // that colorful app icons and the mint accent pop against it.
+    val backgroundColor: Int = Color(0xFF202226).toArgb(),
     val fontColor: Int = Color.White.toArgb(),
     val wallpaperUri: String = "",
     val fontBold: Boolean = false,
@@ -95,6 +97,12 @@ data class AppSettings(
     val gradientEndColor: Int = Color.Black.toArgb(),
     val wallpaperDim: Float = 0.55f,
     val sidebarPosition: SidebarPosition = SidebarPosition.LEFT,
+    // When off, the sidebar's color is derived automatically from
+    // backgroundColor (an "elevated card" tint, lighter than the background
+    // by an amount that scales with how dark that background already is —
+    // see Sidebar.kt). Turning this on overrides that with an exact color.
+    val useCustomSidebarColor: Boolean = false,
+    val sidebarColor: Int = Color(0xFF46484C).toArgb(),
     val bottomBarShortcutsRight: Boolean = false,
     val showAltimeter: Boolean = false,
     val showSpeedometer: Boolean = false,

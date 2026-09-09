@@ -113,6 +113,7 @@ fun PipWidget(
     splitFraction2: Float = 0.5f,
     accent: Color,
     launcherBackground: Color = Color.Black,
+    dividerGripColor: Color = Color.White,
     isDayMode: Boolean,
     isActive: Boolean = true,
     isEditing: Boolean,
@@ -302,7 +303,7 @@ fun PipWidget(
                 onDragEnd = ::endDrag,
                 onTap = { onSwap(0) },
                 accent = accent,
-                isDayMode = isDayMode
+                gripColor = dividerGripColor
             )
             if (showThird) {
                 PaneDivider(
@@ -319,7 +320,7 @@ fun PipWidget(
                     onDragEnd = ::endDrag,
                     onTap = { onSwap(1) },
                     accent = accent,
-                    isDayMode = isDayMode
+                    gripColor = dividerGripColor
                 )
             }
 
@@ -359,7 +360,7 @@ private fun PaneDivider(
     onDragEnd: () -> Unit,
     onTap: () -> Unit,
     accent: Color,
-    isDayMode: Boolean
+    gripColor: Color
 ) {
     Box(
         modifier = Modifier
@@ -406,15 +407,11 @@ private fun PaneDivider(
             },
         contentAlignment = Alignment.Center
     ) {
-        // No accent here — a fixed neutral instead, chosen only to read
-        // clearly against both the (usually light) pane content and the
-        // launcher background, not to match either. Light fill (not dark)
-        // with a thin border for definition — plus a real but tight shadow —
-        // reads as a physical button cap rather than the softer, hazier look
-        // a wider-blur shadow gives at this small size.
+        // Fill always matches whatever color the sidebar itself is actually
+        // rendering (see resolveSidebarColor) rather than a fixed neutral, so
+        // the two visually read as the same "chrome" language. No border —
+        // the shadow alone separates it from whatever's underneath.
         val gripShape = RoundedCornerShape(DIVIDER_GRIP_WIDTH / 2)
-        val gripColor = if (isDayMode) Color(0xFFF5F6F8) else Color(0xFFE2E4E8)
-        val gripBorder = if (isDayMode) Color(0xFFAAAFB8) else Color(0xFF8A8E96)
         Box(
             Modifier
                 .width(DIVIDER_GRIP_WIDTH)
@@ -432,11 +429,6 @@ private fun PaneDivider(
                 .background(
                     if (isDragging) SolidColor(Color.Transparent)
                     else SolidColor(gripColor)
-                )
-                .border(
-                    width = if (isDragging) 0.dp else 1.dp,
-                    color = if (isDragging) Color.Transparent else gripBorder,
-                    shape = gripShape
                 )
         )
     }
