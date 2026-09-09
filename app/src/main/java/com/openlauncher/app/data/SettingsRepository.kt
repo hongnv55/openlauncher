@@ -58,6 +58,7 @@ class SettingsRepository(private val context: Context) {
         val PIP_APP_COUNT         = intPreferencesKey("pip_app_count")
         val PIP_PANE_ORDER_JSON   = stringPreferencesKey("pip_pane_order_json")
         val AUTOSTART_PACKAGES_JSON = stringPreferencesKey("autostart_packages_json")
+        val FAVORITE_APPS_JSON      = stringPreferencesKey("favorite_apps_json")
         val RADIO_PACKAGE         = stringPreferencesKey("radio_package")
         val ONBOARDING_COMPLETED  = booleanPreferencesKey("onboarding_completed")
         val SHOW_VITALS           = booleanPreferencesKey("show_vitals")
@@ -155,6 +156,11 @@ class SettingsRepository(private val context: Context) {
                         gson.fromJson<List<String>>(it, object : TypeToken<List<String>>() {}.type)
                     }.getOrNull()
                 } ?: defaults.autostartPackages,
+                favoriteApps     = prefs[Keys.FAVORITE_APPS_JSON]?.let {
+                    runCatching {
+                        gson.fromJson<List<String>>(it, object : TypeToken<List<String>>() {}.type)
+                    }.getOrNull()
+                } ?: defaults.favoriteApps,
                 radioPackage     = prefs[Keys.RADIO_PACKAGE]    ?: defaults.radioPackage,
                 onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: defaults.onboardingCompleted,
                 showVitals       = prefs[Keys.SHOW_VITALS]      ?: defaults.showVitals,
@@ -228,6 +234,7 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.PIP_APP_COUNT]      = s.pipAppCount
             prefs[Keys.PIP_PANE_ORDER_JSON] = gson.toJson(s.pipPaneOrder)
             prefs[Keys.AUTOSTART_PACKAGES_JSON] = gson.toJson(s.autostartPackages)
+            prefs[Keys.FAVORITE_APPS_JSON] = gson.toJson(s.favoriteApps)
             prefs[Keys.RADIO_PACKAGE]      = s.radioPackage
             prefs[Keys.ONBOARDING_COMPLETED] = s.onboardingCompleted
             prefs[Keys.SHOW_VITALS]        = s.showVitals

@@ -10,6 +10,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +34,8 @@ import androidx.core.graphics.drawable.toBitmap
 import com.openlauncher.app.model.AppInfo
 import com.openlauncher.app.ui.theme.LocalDayMode
 
-private enum class AppFilter { USER, SYSTEM, ALL }
+// FAVORITED first — it's the default-selected/focused tab on open.
+private enum class AppFilter { FAVORITED, USER, SYSTEM, ALL }
 
 // Matches WIDGET_RADIUS/SIDEBAR_RADIUS — one shared corner-radius language
 // across Home's sidebar/PIP panel and the App Library grid.
@@ -50,9 +53,11 @@ fun AppLibraryScreen(
     iconScale: Float = 1.4f,
     gridColumns: Int = 6,
     gridRows: Int = 3,
+    favoriteApps: List<String> = emptyList(),
     onAppClick: (AppInfo) -> Unit,
     onPickerSelect: (Int, AppInfo) -> Unit,
     onCarPlaySelect: (AppInfo) -> Unit,
+    onToggleFavorite: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isDayMode     = LocalDayMode.current
@@ -66,14 +71,16 @@ fun AppLibraryScreen(
 
     val anyPickerMode = isPickerMode || isCarPlayPickerMode
     var query     by remember { mutableStateOf("") }
-    var appFilter by remember { mutableStateOf(AppFilter.USER) }
+    // Favorited is the tab that's focused first on open.
+    var appFilter by remember { mutableStateOf(AppFilter.FAVORITED) }
 
-    val filtered = remember(apps, query, appFilter, anyPickerMode) {
+    val filtered = remember(apps, query, appFilter, anyPickerMode, favoriteApps) {
         val byName = if (query.isBlank()) apps
                      else apps.filter { it.appName.contains(query, ignoreCase = true) }
         // In picker mode always show everything so shortcuts can be set to any app
         if (anyPickerMode) byName
         else when (appFilter) {
+            AppFilter.FAVORITED -> byName.filter { it.packageName in favoriteApps }
             AppFilter.USER   -> byName.filter { !it.isSystemApp }
             AppFilter.SYSTEM -> byName.filter { it.isSystemApp }
             AppFilter.ALL    -> byName
@@ -110,6 +117,7 @@ fun AppLibraryScreen(
                             label    = {
                                 Text(
                                     when (filter) {
+                                        AppFilter.FAVORITED -> "Favorited"
                                         AppFilter.USER   -> "Installed"
                                         AppFilter.SYSTEM -> "System"
                                         AppFilter.ALL    -> "All"
@@ -171,7 +179,12 @@ fun AppLibraryScreen(
 
         if (filtered.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No apps found", color = emptyColor, letterSpacing = 1.sp, fontSize = 12.sp)
+                Text(
+                    if (appFilter == AppFilter.FAVORITED && !anyPickerMode)
+                        "No favorited apps yet — tap the star on any app to add it here"
+                    else "No apps found",
+                    color = emptyColor, letterSpacing = 1.sp, fontSize = 12.sp
+                )
             }
             return@Column
         }
@@ -198,6 +211,14 @@ fun AppLibraryScreen(
                         accent     = accent,
                         iconScale  = iconScale,
                         tileHeight = tileHeight,
+                        isFavorite = app.packageName in favoriteApps,
+                        // Star toggle only in normal browse mode — in picker
+                        // mode a tap is meant to pick the app for assignment,
+                        // and the filter chips (Favorited included) are
+                        // already hidden there too.
+                        onToggleFavorite = if (anyPickerMode) null else {
+                            { onToggleFavorite(app.packageName) }
+                        },
                         onClick = {
                             when {
                                 isCarPlayPickerMode            -> onCarPlaySelect(app)
@@ -218,15 +239,15 @@ private fun AppTile(
     accent: Color,
     iconScale: Float,
     tileHeight: Dp,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val isDayMode  = LocalDayMode.current
     val tileBg     = if (isDayMode) Color(0xFFFFFFFF) else Color(0xFF0B0B0B)
     val tileBorder = if (isDayMode) Color(0xFFCCCCCC) else Color(0xFF1A1A1A)
     val iconSize   = 40.dp * iconScale
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(tileHeight)
@@ -234,34 +255,58 @@ private fun AppTile(
             .background(tileBg)
             .border(1.dp, tileBorder, TILE_RADIUS)
             .clickable(onClick = onClick)
-            .padding(7.dp)
     ) {
-        val bmp = remember(app.packageName, iconScale) {
-            val px = (80 * iconScale).toInt()
-            try { app.icon.toBitmap(px, px) } catch (_: Exception) { null }
-        }
-        if (bmp != null) {
-            androidx.compose.foundation.Image(
-                painter            = BitmapPainter(bmp.asImageBitmap()),
-                contentDescription = app.appName,
-                modifier           = Modifier.size(iconSize)
-            )
-        } else {
-            Box(Modifier.size(iconSize), contentAlignment = Alignment.Center) {
-                Text(app.appName.take(1).uppercase(), color = accent, fontSize = 18.sp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize().padding(7.dp)
+        ) {
+            val bmp = remember(app.packageName, iconScale) {
+                val px = (80 * iconScale).toInt()
+                try { app.icon.toBitmap(px, px) } catch (_: Exception) { null }
             }
+            if (bmp != null) {
+                androidx.compose.foundation.Image(
+                    painter            = BitmapPainter(bmp.asImageBitmap()),
+                    contentDescription = app.appName,
+                    modifier           = Modifier.size(iconSize)
+                )
+            } else {
+                Box(Modifier.size(iconSize), contentAlignment = Alignment.Center) {
+                    Text(app.appName.take(1).uppercase(), color = accent, fontSize = 18.sp)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text          = app.appName.uppercase(),
+                style         = MaterialTheme.typography.labelSmall,
+                color         = if (isDayMode) Color(0xFF666666) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                maxLines      = 2,
+                overflow      = TextOverflow.Clip,
+                textAlign     = TextAlign.Center,
+                letterSpacing = 0.5.sp,
+                lineHeight    = 12.sp,
+                fontSize      = 11.sp
+            )
         }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text          = app.appName.uppercase(),
-            style         = MaterialTheme.typography.labelSmall,
-            color         = if (isDayMode) Color(0xFF666666) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-            maxLines      = 2,
-            overflow      = TextOverflow.Clip,
-            textAlign     = TextAlign.Center,
-            letterSpacing = 0.5.sp,
-            lineHeight    = 12.sp,
-            fontSize      = 11.sp
-        )
+
+        if (onToggleFavorite != null) {
+            val starTint = if (isFavorite) Color(0xFFFFC107) else if (isDayMode) Color(0xFFBBBBBB) else Color(0xFF444444)
+            Icon(
+                imageVector        = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                contentDescription = if (isFavorite) "Unfavorite" else "Favorite",
+                tint               = starTint,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(32.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication        = null,
+                        onClick           = onToggleFavorite
+                    )
+                    .padding(2.dp)
+            )
+        }
     }
 }

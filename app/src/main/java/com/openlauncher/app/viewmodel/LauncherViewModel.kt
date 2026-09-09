@@ -199,6 +199,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun removeAutostartApp(packageName: String) {
         updateSettings { copy(autostartPackages = autostartPackages - packageName) }
     }
+    fun toggleFavoriteApp(packageName: String) {
+        updateSettings {
+            if (packageName in favoriteApps) copy(favoriteApps = favoriteApps - packageName)
+            else copy(favoriteApps = favoriteApps + packageName)
+        }
+    }
     fun setPipSplit(fraction: Float)  { updateSettings { copy(pipPaneSplit = fraction.coerceIn(0.15f, 0.85f)) } }
     fun setPipSplit2(fraction: Float) { updateSettings { copy(pipPaneSplit2 = fraction.coerceIn(0.15f, 0.85f)) } }
     fun setPipAppCount(count: Int)    { updateSettings { copy(pipAppCount = count.coerceIn(1, 3)) } }

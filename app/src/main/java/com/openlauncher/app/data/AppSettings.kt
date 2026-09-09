@@ -82,6 +82,9 @@ data class AppSettings(
     val appGridColumns: Int = 7,
     // Rows visible without scrolling — tile height = available height / appGridRows
     val appGridRows: Int = 3,
+    // Package names the user starred in App Library — shown in the
+    // "Favorited" tab there
+    val favoriteApps: List<String> = emptyList(),
     val clockStyle: ClockStyle = ClockStyle.DIGITAL,
     val unitSystem: UnitSystem = UnitSystem.METRIC,
     val appFont: AppFont = AppFont.JETBRAINS_MONO,

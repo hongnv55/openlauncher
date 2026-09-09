@@ -375,9 +375,11 @@ class MainActivity : ComponentActivity() {
                                         iconScale           = settings.appIconScale,
                                         gridColumns         = settings.appGridColumns,
                                         gridRows            = settings.appGridRows,
+                                        favoriteApps        = settings.favoriteApps,
                                         onAppClick          = { app -> vm.launchApp(app.packageName) },
                                         onPickerSelect      = { slot, app -> vm.assignShortcut(slot, app) },
-                                        onCarPlaySelect     = { app -> vm.assignPickerApp(app) }
+                                        onCarPlaySelect     = { app -> vm.assignPickerApp(app) },
+                                        onToggleFavorite    = { pkg -> vm.toggleFavoriteApp(pkg) }
                                     )
 
                                     NavDestination.SETTINGS -> SettingsScreen(
