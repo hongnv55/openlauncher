@@ -25,16 +25,17 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.openlauncher.app.BuildConfig
 import com.openlauncher.app.data.AppFont
 import com.openlauncher.app.data.AppSettings
 import com.openlauncher.app.data.DayNightMode
 import kotlin.math.roundToInt
 import com.openlauncher.app.data.SidebarPosition
 import com.openlauncher.app.data.ShortcutConfig
-import com.openlauncher.app.data.GradientDirection
 import com.openlauncher.app.data.UnitSystem
 import com.openlauncher.app.ui.theme.LocalDayMode
-import com.openlauncher.app.util.SunriseSunset
+import com.openlauncher.app.ui.theme.PaneInset
+import com.openlauncher.app.ui.theme.contentPane
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.openlauncher.app.ui.components.ColorPickerDialog
@@ -66,8 +67,6 @@ fun SettingsScreen(
     var showResetDialog       by remember { mutableStateOf(false) }
     var showRestartDialog     by remember { mutableStateOf(false) }
     var showAccentPicker      by remember { mutableStateOf(false) }
-    var showBgPicker          by remember { mutableStateOf(false) }
-    var showGradientEndPicker by remember { mutableStateOf(false) }
     var showSidebarColorPicker by remember { mutableStateOf(false) }
     var showFontColorPicker   by remember { mutableStateOf(false) }
 
@@ -87,12 +86,16 @@ fun SettingsScreen(
     }
 
     val isDayMode = LocalDayMode.current
-    val screenBg  = MaterialTheme.colorScheme.background
 
+    // Same content card as a PIP pane and the app list, at the same inset, so
+    // all three destinations swap contents inside one persistent frame. Also
+    // drops the old full-bleed colorScheme.background fill, which painted the
+    // pre-wallpaper background colour straight over the wallpaper.
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(screenBg)
+            .padding(PaneInset)
+            .contentPane(isDayMode, accent)
     ) {
     Column(
         modifier = Modifier
@@ -619,60 +622,6 @@ fun SettingsScreen(
 
             SettingsDivider()
 
-            // Background color + gradient
-            SettingsRow(
-                label    = "Background",
-                sublabel = if (settings.useGradient) "Gradient" else "Solid color",
-                icon     = Icons.Default.FormatColorFill
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment     = Alignment.CenterVertically
-                ) {
-                    // Start color swatch
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color(settings.backgroundColor))
-                            .clickable { showBgPicker = true }
-                    )
-                    if (settings.useGradient) {
-                        androidx.compose.material3.Icon(
-                            Icons.Default.ArrowForward, null,
-                            tint = if (isDayMode) Color(0xFF999999) else Color(0xFF555555), modifier = Modifier.size(14.dp)
-                        )
-                        // End color swatch
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(Color(settings.gradientEndColor))
-                                .clickable { showGradientEndPicker = true }
-                        )
-                    }
-                    if (settings.useCustomBackgroundColor) {
-                        TextButton(
-                            onClick = {
-                                onUpdate {
-                                    copy(
-                                        useCustomBackgroundColor = false,
-                                        backgroundColor = Color.Black.toArgb(),
-                                        useGradient = false
-                                    )
-                                }
-                            },
-                            contentPadding = PaddingValues(horizontal = 6.dp),
-                            modifier = Modifier.height(28.dp)
-                        ) {
-                            Text("DEFAULT", color = accent, fontSize = 9.sp, letterSpacing = 1.sp)
-                        }
-                    }
-                }
-            }
-
-            SettingsDivider()
-
             // Sidebar color — independent of Background: when off, the
             // sidebar auto-derives an "elevated card" tint from whatever
             // background is picked above (see Sidebar.kt); this lets that be
@@ -720,53 +669,6 @@ fun SettingsScreen(
                         .background(Color(settings.fontColor))
                         .clickable { showFontColorPicker = true }
                 )
-            }
-
-            SettingsDivider()
-
-            SettingsRow(label = "Use Gradient", sublabel = "Blend two colors as background", icon = Icons.Default.Gradient) {
-                Switch(checked = settings.useGradient,
-                    onCheckedChange = { onUpdate { copy(useGradient = it) } },
-                    colors = switchColors(accent))
-            }
-
-            if (settings.useGradient) {
-                SettingsDivider()
-                SettingsRow(
-                    label    = "Gradient Direction",
-                    sublabel = when (settings.gradientDirection) {
-                        GradientDirection.TOP_TO_BOTTOM -> "Top to Bottom"
-                        GradientDirection.LEFT_TO_RIGHT -> "Left to Right"
-                        GradientDirection.DIAGONAL      -> "Diagonal (Linear)"
-                        GradientDirection.RADIAL        -> "Radial (Circular)"
-                    },
-                    icon     = Icons.Default.TrendingFlat
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        GradientDirection.entries.forEach { dir ->
-                            FilterChip(
-                                selected = settings.gradientDirection == dir,
-                                onClick  = { onUpdate { copy(gradientDirection = dir) } },
-                                label    = {
-                                    Text(
-                                        text      = when (dir) {
-                                            GradientDirection.TOP_TO_BOTTOM -> "Vertical"
-                                            GradientDirection.LEFT_TO_RIGHT -> "Horizontal"
-                                            GradientDirection.DIAGONAL      -> "Diagonal"
-                                            GradientDirection.RADIAL        -> "Radial"
-                                        },
-                                        fontSize  = 9.sp,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = accent,
-                                    selectedLabelColor     = Color.Black
-                                )
-                            )
-                        }
-                    }
-                }
             }
 
             SettingsDivider()
@@ -1059,7 +961,7 @@ fun SettingsScreen(
         Spacer(Modifier.height(32.dp))
 
         Text(
-            text          = "v0.0.5  ·  Made by David Lam  ·  2026",
+            text          = "v${BuildConfig.VERSION_NAME}  ·  Made by David Lam  ·  2026",
             color         = if (isDayMode) Color(0xFFAAAAAA) else Color(0xFF2A2A2A),
             fontSize      = 10.sp,
             letterSpacing = 1.sp,
@@ -1103,22 +1005,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showBgPicker) {
-        ColorPickerDialog(
-            title           = "Background Color",
-            initialColor    = Color(settings.backgroundColor),
-            onColorSelected = { c -> 
-                onUpdate { 
-                    copy(
-                        backgroundColor = c.toArgb(),
-                        useCustomBackgroundColor = true
-                    ) 
-                } 
-            },
-            onDismiss       = { showBgPicker = false }
-        )
-    }
-
     if (showSidebarColorPicker) {
         ColorPickerDialog(
             title           = "Sidebar Color",
@@ -1132,22 +1018,6 @@ fun SettingsScreen(
                 }
             },
             onDismiss       = { showSidebarColorPicker = false }
-        )
-    }
-
-    if (showGradientEndPicker) {
-        ColorPickerDialog(
-            title           = "Gradient End Color",
-            initialColor    = Color(settings.gradientEndColor),
-            onColorSelected = { c -> 
-                onUpdate { 
-                    copy(
-                        gradientEndColor = c.toArgb(),
-                        useCustomBackgroundColor = true
-                    ) 
-                } 
-            },
-            onDismiss       = { showGradientEndPicker = false }
         )
     }
 

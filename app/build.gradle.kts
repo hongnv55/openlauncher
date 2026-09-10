@@ -13,8 +13,8 @@ android {
         applicationId  = "com.openlauncher.app"
         minSdk         = 21
         targetSdk      = 36
-        versionCode    = 9
-        versionName    = "0.0.8"
+        versionCode    = 10
+        versionName    = "0.0.9"
         manifestPlaceholders["sharedUserId"] = ""
     }
 
@@ -49,6 +49,10 @@ android {
 
     buildFeatures {
         compose = true
+        // The version string is shown in Settings and Onboarding; reading it
+        // from BuildConfig keeps those from drifting out of date, which two
+        // hard-coded "v0.0.5" literals already had.
+        buildConfig = true
     }
 }
 

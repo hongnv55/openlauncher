@@ -15,13 +15,11 @@ val LocalDayMode = staticCompositionLocalOf { false }
 @Composable
 fun OpenLauncherTheme(
     accent: Color     = AccentWhite,
-    background: Color = Black,
     textColor: Color  = Color.White,
     fontBold: Boolean = false,
     textScale: Float  = 1.0f,
     appFont: AppFont  = AppFont.JETBRAINS_MONO,
     isDayMode: Boolean = false,
-    useCustomBg: Boolean = false,
     content: @Composable () -> Unit
 ) {
     // Contrast-aware: the accent is user-chosen and can be any brightness,
@@ -33,7 +31,7 @@ fun OpenLauncherTheme(
         secondary        = accent.copy(alpha = 0.7f),
         onSecondary      = onAccent,
         tertiary         = accent.copy(alpha = 0.5f),
-        background       = if (useCustomBg) background else Color(0xFFEEEEEE),
+        background       = Color(0xFFEEEEEE),
         surface          = Color(0xFFFFFFFF),
         onBackground     = Color(0xFF111111),
         onSurface        = Color(0xFF111111),
@@ -46,7 +44,11 @@ fun OpenLauncherTheme(
         secondary        = accent.copy(alpha = 0.7f),
         onSecondary      = onAccent,
         tertiary         = accent.copy(alpha = 0.5f),
-        background       = background,
+        // Only reached by dialogs and dropdowns now — every destination paints
+        // its own content card over the wallpaper, so nothing uses this as a
+        // full-screen fill. Kept at the graphite the removed backgroundColor
+        // setting used to default to, so those surfaces look unchanged.
+        background       = Color(0xFF202226),
         surface          = CardSurface,
         onBackground     = textColor,
         onSurface        = textColor,

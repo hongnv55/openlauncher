@@ -22,8 +22,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -31,19 +39,27 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.openlauncher.app.data.AppSettings
 import com.openlauncher.app.data.DefaultShortcutIcon
 import com.openlauncher.app.data.ShortcutConfig
 import com.openlauncher.app.data.SidebarPosition
 import com.openlauncher.app.model.NavDestination
 import com.openlauncher.app.ui.theme.LocalDayMode
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 private val ICON_SIZE   = 30.dp
@@ -51,9 +67,176 @@ private val ICON_SIZE   = 30.dp
 // can run bigger than ICON_SIZE without getting cut off at the chip's edge.
 private val NAV_ICON_SIZE = 46.dp
 private val SLOT_SIZE   = 52.dp
-private val SIDEBAR_CORNER  = 12.dp
+// Big enough that the two non-flush corners read as a half-capsule against
+// the 56dp bar width, rather than a merely "slightly softened" rectangle.
+private val SIDEBAR_CORNER  = 24.dp
 private val NAV_CHIP_SIZE   = 46.dp
 private val NAV_CHIP_RADIUS = RoundedCornerShape(14.dp)
+
+// ── Tones derived from the surface the sidebar actually presents ─────────────
+// These used to be hard-coded for a dark sidebar, which broke once the sidebar
+// color became configurable. They are all keyed off one question — does the
+// panel read light or dark — answered by [readsLight].
+
+/**
+ * Whether the panel reads as light to the eye.
+ *
+ * `Color.luminance()` ignores alpha, so it cannot answer this for glass: a
+ * 10%-white veil and a 30%-white veil both report luminance 1.0 while looking
+ * nothing alike. A translucent panel takes most of its apparent lightness from
+ * the wallpaper behind it, and that tracks day/night — so alpha picks which
+ * signal to trust: an opaque custom color is judged on its own luminance, a
+ * glass panel on the mode.
+ */
+private fun readsLight(sidebarBg: Color, isDayMode: Boolean): Boolean =
+    if (sidebarBg.alpha >= 0.9f) sidebarBg.luminance() > 0.5f else isDayMode
+
+/**
+ * Which edge sits flush against the window, and so gets no rim at all: the
+ * panel is meant to read as continuous with the screen edge there, and a
+ * highlight traced along that seam turns it into a drawn outline instead.
+ */
+private enum class FlushEdge { LEFT, RIGHT, BOTTOM }
+
+/**
+ * Draws [rimOn]'s highlight along only the edges that face the content, as an
+ * open path. `Modifier.border` has no per-side option and would trace all four,
+ * including the flush one.
+ */
+private fun Modifier.glassRim(color: Color, radius: Dp, flush: FlushEdge): Modifier =
+    this.drawWithContent {
+        drawContent()
+        val sw = 1.dp.toPx()
+        val i  = sw / 2   // half the stroke, so the line lands wholly inside the clip
+        val r  = radius.toPx()
+        val w  = size.width
+        val h  = size.height
+        val p  = Path()
+        when (flush) {
+            FlushEdge.LEFT -> {
+                p.moveTo(0f, i)
+                p.lineTo(w - i - r, i)
+                p.arcTo(Rect(w - i - 2 * r, i, w - i, i + 2 * r), -90f, 90f, false)
+                p.lineTo(w - i, h - i - r)
+                p.arcTo(Rect(w - i - 2 * r, h - i - 2 * r, w - i, h - i), 0f, 90f, false)
+                p.lineTo(0f, h - i)
+            }
+            FlushEdge.RIGHT -> {
+                p.moveTo(w, i)
+                p.lineTo(i + r, i)
+                p.arcTo(Rect(i, i, i + 2 * r, i + 2 * r), -90f, -90f, false)
+                p.lineTo(i, h - i - r)
+                p.arcTo(Rect(i, h - i - 2 * r, i + 2 * r, h - i), 180f, -90f, false)
+                p.lineTo(w, h - i)
+            }
+            FlushEdge.BOTTOM -> {
+                p.moveTo(i, h)
+                p.lineTo(i, i + r)
+                p.arcTo(Rect(i, i, i + 2 * r, i + 2 * r), 180f, 90f, false)
+                p.lineTo(w - i - r, i)
+                p.arcTo(Rect(w - i - 2 * r, i, w - i, i + 2 * r), -90f, 90f, false)
+                p.lineTo(w - i, h)
+            }
+        }
+        drawPath(p, color, style = Stroke(width = sw))
+    }
+
+/**
+ * The panel's backdrop: the same wallpaper, at the same crop geometry and size
+ * as the fullscreen layer, translated back by this panel's own position so the
+ * fragment showing through lines up with the image around it. Misalignment
+ * would show a different part of the scene inside the panel than outside, which
+ * is why this works in pixels rather than dp.
+ *
+ * Drawn in the draw phase with an explicit translate rather than laid out as an
+ * oversized child with Modifier.offset. That approach depended on how the parent
+ * placed a child bigger than itself, and measurement showed this Box *centres*
+ * such a child (a 1920px node in a 70px panel landed 925px left of the panel
+ * origin) rather than pinning it top-left, so the offset that should have
+ * aligned it pushed it off-panel entirely. Translating at draw time has no such
+ * dependency.
+ */
+@Composable
+private fun GlassBackdrop(
+    model: Any?,
+    wallpaperOriginPx: IntOffset,
+    wallpaperSizePx: IntSize,
+    dim: Float,
+    panelOriginPx: IntOffset
+) {
+    // Zero on the very first pass, before onGloballyPositioned has reported.
+    if (model == null || wallpaperSizePx.width <= 0 || wallpaperSizePx.height <= 0) return
+    val painter = rememberAsyncImagePainter(
+        ImageRequest.Builder(LocalContext.current)
+            .data(model)
+            .size(wallpaperSizePx.width, wallpaperSizePx.height)
+            .build()
+    )
+    val dx  = (wallpaperOriginPx.x - panelOriginPx.x).toFloat()
+    val dy  = (wallpaperOriginPx.y - panelOriginPx.y).toFloat()
+    val wpW = wallpaperSizePx.width.toFloat()
+    val wpH = wallpaperSizePx.height.toFloat()
+
+    Box(
+        Modifier.fillMaxSize().drawWithContent {
+            // isSpecified must be checked before touching width/height: Size
+            // is an inline value class whose accessors *throw* on
+            // Size.Unspecified rather than returning NaN, and the painter
+            // reports Unspecified until the image has loaded — which is every
+            // first frame after a cold start.
+            val isize = painter.intrinsicSize
+            val iw = if (isize.isSpecified) isize.width  else 0f
+            val ih = if (isize.isSpecified) isize.height else 0f
+            if (iw > 0f && ih > 0f && iw.isFinite() && ih.isFinite()) {
+                // Replicate ContentScale.Crop over the wallpaper's own rect, so
+                // the fragment under this panel is the same pixels the
+                // fullscreen layer shows around it.
+                val scale = max(wpW / iw, wpH / ih)
+                val dw = iw * scale
+                val dh = ih * scale
+                translate(dx + (wpW - dw) / 2f, dy + (wpH - dh) / 2f) {
+                    with(painter) { draw(Size(dw, dh)) }
+                }
+            }
+            drawContent()
+        }
+    )
+    // The same veil the fullscreen layer gets — without it the panel's backdrop
+    // would sit brighter than the wallpaper it is supposed to continue.
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim)))
+}
+
+/**
+ * The panel's outer rim — always a white highlight, never a dark line, because
+ * this is the edge-lit sheen that makes glass look like glass. It only changes
+ * strength: 0.70 on light glass, where it is the main thing separating the
+ * panel from a bright wallpaper (0.55 sat too close to the panel's own 0.50
+ * veil to register as a separate highlight), and a restrained 0.22 on dark
+ * glass, where more turns it into a drawn outline.
+ */
+private fun rimOn(sidebarBg: Color, isDayMode: Boolean): Color =
+    Color.White.copy(alpha = if (readsLight(sidebarBg, isDayMode)) 0.70f else 0.22f)
+
+/**
+ * Interior hairline (the divider above the nav group). Unlike the rim this has
+ * to read *against* the panel, so it goes dark on light glass.
+ */
+private fun hairlineOn(sidebarBg: Color, isDayMode: Boolean, onLight: Float, onDark: Float): Color =
+    if (readsLight(sidebarBg, isDayMode)) Color.Black.copy(alpha = onLight)
+    else Color.White.copy(alpha = onDark)
+
+/**
+ * Single inactive-glyph tone for the whole sidebar — nav buttons and shortcut
+ * slots previously each computed their own, and disagreed. [faint] is for a
+ * placeholder (an empty slot's "+"), which should read as absent rather than
+ * as a real icon that happens to be dim.
+ */
+private fun inactiveIconOn(sidebarBg: Color, isDayMode: Boolean, faint: Boolean = false): Color =
+    if (readsLight(sidebarBg, isDayMode)) {
+        if (faint) Color(0x669A9A9A) else Color(0xE6404040)
+    } else {
+        Color.White.copy(alpha = if (faint) 0.28f else 0.62f)
+    }
 
 @Composable
 fun Sidebar(
@@ -67,12 +250,19 @@ fun Sidebar(
     onShortcutSetIcon: (Int, DefaultShortcutIcon?) -> Unit,
     onReorder: (from: Int, to: Int) -> Unit,
     isHorizontal: Boolean = false,
+    wallpaperModel: Any? = null,
+    wallpaperOriginPx: IntOffset = IntOffset.Zero,
+    wallpaperSizePx: IntSize = IntSize.Zero,
     modifier: Modifier = Modifier
 ) {
     val isDayMode    = LocalDayMode.current
+    // Captured from the panel itself rather than derived from sidebarPosition,
+    // so the backdrop's alignment holds for LEFT/RIGHT/BOTTOM alike and stays
+    // correct when the status-bar or nav-bar padding above changes.
+    var panelOriginPx by remember { mutableStateOf(IntOffset.Zero) }
     val accent       = Color(settings.accentColor)
     val sidebarBg    = settings.resolveSidebarColor(isDayMode)
-    val iconInactive = if (isDayMode) Color(0xFF777777) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+    val iconInactive = inactiveIconOn(sidebarBg, isDayMode)
     val density      = LocalDensity.current
     val slotSizePx   = with(density) { SLOT_SIZE.toPx() }
 
@@ -192,9 +382,22 @@ fun Sidebar(
                     ambientColor = Color.Black.copy(alpha = 0.4f),
                     spotColor    = Color.Black.copy(alpha = 0.4f)
                 )
+                .onGloballyPositioned { panelOriginPx = it.positionInWindow().round() }
                 .clip(bottomBarShape)
-                .background(sidebarBg)
+                // Edge-lit highlight along the silhouette — what separates the
+                // bar from the backdrop behind it. Skips the bottom edge, which
+                // is flush with the window.
+                .glassRim(rimOn(sidebarBg, isDayMode), SIDEBAR_CORNER, FlushEdge.BOTTOM)
         ) {
+            GlassBackdrop(
+                model             = wallpaperModel,
+                wallpaperOriginPx = wallpaperOriginPx,
+                wallpaperSizePx   = wallpaperSizePx,
+                dim               = settings.wallpaperDim,
+                panelOriginPx     = panelOriginPx
+            )
+            Box(Modifier.fillMaxSize().background(sidebarBg))
+
             // Shortcuts centred, inset past the edge-pinned nav buttons and
             // scrollable — an unbounded row ran beneath the nav buttons and off
             // both screen edges once enough slots were added
@@ -243,7 +446,7 @@ fun Sidebar(
         // fixed, independent element noticeably shorter than the content it
         // sits beside — not just another same-sized card — at any height.
         val inset = maxHeight * 0.1f
-        Column(
+        Box(
             modifier = Modifier
                 .padding(vertical = inset)
                 .width(56.dp)
@@ -254,8 +457,27 @@ fun Sidebar(
                     ambientColor = Color.Black.copy(alpha = 0.4f),
                     spotColor    = Color.Black.copy(alpha = 0.4f)
                 )
+                .onGloballyPositioned { panelOriginPx = it.positionInWindow().round() }
                 .clip(sidebarShape)
-                .background(sidebarBg),
+                // See the bottom-bar variant above. Skips whichever vertical
+                // edge is flush with the window for this sidebar position.
+                .glassRim(
+                    rimOn(sidebarBg, isDayMode),
+                    SIDEBAR_CORNER,
+                    if (settings.sidebarPosition == SidebarPosition.RIGHT) FlushEdge.RIGHT
+                    else FlushEdge.LEFT
+                )
+        ) {
+        GlassBackdrop(
+            model             = wallpaperModel,
+            wallpaperOriginPx = wallpaperOriginPx,
+            wallpaperSizePx   = wallpaperSizePx,
+            dim               = settings.wallpaperDim,
+            panelOriginPx     = panelOriginPx
+        )
+        Box(Modifier.fillMaxSize().background(sidebarBg))
+        Column(
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
@@ -279,11 +501,17 @@ fun Sidebar(
                     .padding(horizontal = 12.dp)
                     .width(32.dp),
                 thickness = 1.dp,
-                color     = Color.White.copy(alpha = 0.35f)
+                color     = hairlineOn(sidebarBg, isDayMode, 0.18f, 0.35f)
             )
             Spacer(Modifier.height(8.dp))
             navButtons()
-            Spacer(Modifier.height(4.dp))
+            // Matches the 13.6dp the first shortcut slot gets at the top. At the
+            // old 4dp the Home glyph and its active-state bar ended up 4.8dp off
+            // the panel's bottom edge — under a third of the top inset, and
+            // tighter still to the eye because the 24dp bottom corner is curving
+            // inward right there.
+            Spacer(Modifier.height(13.dp))
+        }
         }
         }
     }
@@ -398,61 +626,75 @@ private fun ShortcutSlot(
             }
     ) {
         val isDayMode    = LocalDayMode.current
-        val iconInactive = if (isDayMode) Color(0xFF777777) else Color(0xFF3A3A3A)
-        // Same chip footprint/radius as NavButton below, always visible (not
-        // just on an "active" state — shortcuts don't have one) so a bare
-        // 30dp glyph doesn't float alone in a 52dp slot, reading noticeably
-        // sparser/smaller than the nav icons right below it, which sit
-        // inside their own chip. A subtle lighter step off the sidebar's own
-        // color (not a contrasting swatch) — close enough in tone to still
-        // read as part of the same sidebar, just a hair "raised" toward a
-        // light source, the way a bevel/highlight implies elevation.
-        val chipBg = lerp(sidebarBg, Color.White, 0.12f)
-        Box(
-            modifier = Modifier
-                .size(NAV_CHIP_SIZE)
-                .clip(NAV_CHIP_RADIUS)
-                .background(chipBg),
-            contentAlignment = Alignment.Center
-        ) {
-        val override = shortcut.customIconOverride
-        when {
-            override != null && override != DefaultShortcutIcon.NONE -> {
-                Icon(
-                    imageVector        = override.toIcon(),
-                    contentDescription = shortcut.label,
-                    tint               = iconInactive,
-                    modifier           = Modifier.size(ICON_SIZE)
-                )
+        val iconInactive = inactiveIconOn(sidebarBg, isDayMode)
+        val override     = shortcut.customIconOverride
+        // An explicit override still wins over the installed icon, matching
+        // the ordering of the `when` this replaced.
+        val nativeIcon   = resolvedIcon
+            ?.takeIf { override == null || override == DefaultShortcutIcon.NONE }
+
+        if (nativeIcon != null) {
+            // Full-bleed at the chip's own footprint, with no chip underneath:
+            // an app icon is already a rounded square carrying its own
+            // background, so nesting it inside another one read muddy and cost
+            // the artwork a third of its size. Still clipped, so a legacy
+            // square bitmap takes the same silhouette as an adaptive icon.
+            val sizePx = with(LocalDensity.current) { NAV_CHIP_SIZE.roundToPx() }
+            // Cached per icon *and* per resolved pixel size — every slot
+            // recomposes each drag frame, and an un-remembered toBitmap
+            // allocated a fresh bitmap per slot per frame. Rasterising at the
+            // real pixel size instead of a fixed 60px is what removes the
+            // upscale blur on 3x-density screens.
+            val bmp = remember(nativeIcon, sizePx) { nativeIcon.toBitmap(sizePx, sizePx) }
+            Icon(
+                painter            = BitmapPainter(bmp.asImageBitmap()),
+                contentDescription = shortcut.label,
+                tint               = Color.Unspecified,
+                modifier           = Modifier
+                    .size(NAV_CHIP_SIZE)
+                    .clip(NAV_CHIP_RADIUS)
+            )
+        } else {
+            // Vector glyphs keep the chip: a bare 30dp glyph floating alone in
+            // a 52dp slot read noticeably sparser/smaller than the nav icons
+            // right below it. A subtle lighter step off the sidebar's own color
+            // (not a contrasting swatch) — close enough in tone to still read
+            // as part of the same sidebar, just a hair "raised" toward a light
+            // source, the way a bevel/highlight implies elevation.
+            Box(
+                modifier = Modifier
+                    .size(NAV_CHIP_SIZE)
+                    .clip(NAV_CHIP_RADIUS)
+                    .background(lerp(sidebarBg, Color.White, 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    override != null && override != DefaultShortcutIcon.NONE -> {
+                        Icon(
+                            imageVector        = override.toIcon(),
+                            contentDescription = shortcut.label,
+                            tint               = iconInactive,
+                            modifier           = Modifier.size(ICON_SIZE)
+                        )
+                    }
+                    shortcut.isDefault -> {
+                        Icon(
+                            imageVector        = shortcut.defaultIcon.toIcon(),
+                            contentDescription = shortcut.label,
+                            tint               = iconInactive,
+                            modifier           = Modifier.size(ICON_SIZE)
+                        )
+                    }
+                    else -> {
+                        Icon(
+                            imageVector        = Icons.Default.Add,
+                            contentDescription = "Add shortcut",
+                            tint               = inactiveIconOn(sidebarBg, isDayMode, faint = true),
+                            modifier           = Modifier.size(ICON_SIZE)
+                        )
+                    }
+                }
             }
-            resolvedIcon != null -> {
-                // Cache per icon — every slot recomposes each drag frame, and an
-                // un-remembered toBitmap allocated a fresh bitmap per slot per frame
-                val bmp = remember(resolvedIcon) { resolvedIcon.toBitmap(60, 60) }
-                Icon(
-                    painter            = BitmapPainter(bmp.asImageBitmap()),
-                    contentDescription = shortcut.label,
-                    tint               = Color.Unspecified,
-                    modifier           = Modifier.size(30.dp)
-                )
-            }
-            shortcut.isDefault -> {
-                Icon(
-                    imageVector        = shortcut.defaultIcon.toIcon(),
-                    contentDescription = shortcut.label,
-                    tint               = iconInactive,
-                    modifier           = Modifier.size(ICON_SIZE)
-                )
-            }
-            else -> {
-                Icon(
-                    imageVector        = Icons.Default.Add,
-                    contentDescription = "Add shortcut",
-                    tint               = if (isDayMode) Color(0xFFBBBBBB) else Color(0xFF252525),
-                    modifier           = Modifier.size(ICON_SIZE)
-                )
-            }
-        }
         }
     }
 }
@@ -658,28 +900,38 @@ fun DefaultShortcutIcon.toIcon(): ImageVector = when (this) {
     DefaultShortcutIcon.NONE        -> Icons.Default.Apps
 }
 
-// Shared with PipWidget's divider grip (see HomeScreen.kt/PipWidget.kt) so
-// that grip always matches whatever color the sidebar itself actually ends
-// up rendering — auto-derived from the background, or the exact color when
-// useCustomSidebarColor overrides it — rather than tracking it separately.
+// Also feeds PipWidget's divider grip (see HomeScreen.kt/PipWidget.kt) so the
+// grip is defined from the sidebar rather than tracked separately. Note the
+// grip composites this over pane content, not over the wallpaper, so with the
+// default glass value the two match in tone rather than pixel-for-pixel.
 fun AppSettings.resolveSidebarColor(isDayMode: Boolean): Color {
-    // Derived from the launcher's own background, not a fixed gray — a
-    // lighter tint of it (elevation via tone, not a hard-coded color), so
-    // the sidebar stays in the same palette as whatever background the user
-    // picks. How much lighter scales with how dark the background already
-    // is, rather than a fixed day/night split: a near-black background only
-    // needs a small lift to read as an elevated card (lifting it 80% of the
-    // way to white — right for the original pale default — would blow a dark
-    // background out to a stark near-white slab instead). An already-light
-    // background still gets pushed further toward white so it stays visibly
-    // lighter than its own backdrop.
+    // Frosted glass, not a solid slab. The sidebar now always sits on the
+    // wallpaper (see the wallpaper layer in MainActivity), so it should let the
+    // image through and take its tone from it — which is what makes it read as
+    // a panel floating over the scene rather than a bar bolted beside it.
+    //
+    // This replaces a lift derived from `backgroundColor`. That derivation made
+    // sense while the sidebar sat on a flat fill of that color, but the
+    // wallpaper hides it now, so the sidebar was tracking a color nobody sees
+    // and came out an opaque mid-gray no matter how bright the wallpaper was.
+    //
+    // A white veil in both modes rather than white/day + black/night: the glass
+    // reads as the same material at two strengths, and over a dark wallpaper a
+    // faint white lift still says "translucent panel", where a black one just
+    // deepens the image. `useCustomSidebarColor` still wins outright for anyone
+    // who wants a specific opaque color.
     return if (useCustomSidebarColor) {
         Color(sidebarColor)
-    } else if (useCustomBackgroundColor) {
-        val customBg = Color(backgroundColor)
-        val liftFraction = 0.18f + (0.8f - 0.18f) * customBg.luminance().coerceIn(0f, 1f)
-        lerp(customBg, Color.White, liftFraction)
     } else {
-        if (isDayMode) Color(0xFFE0E0E0) else Color.Black.copy(alpha = 0.4f)
+        // 0.50 rather than a lighter veil because the panel has to carry the
+        // monochrome nav glyphs, and what sits behind it is not uniform: down
+        // this wallpaper the value swings from ~(194,168,139) at the top to
+        // ~(72,59,49) in the dune shadow, which is exactly where the nav group
+        // sits. Measured against a #404040 glyph, 0.30 gave 2.33:1 over that
+        // dark end — under the 3:1 floor for large graphics — while 0.50 gives
+        // 3.88:1 and still reads as glass, with the gradient clearly visible
+        // through it.
+        if (isDayMode) Color.White.copy(alpha = 0.50f)
+        else           Color.White.copy(alpha = 0.10f)
     }
 }

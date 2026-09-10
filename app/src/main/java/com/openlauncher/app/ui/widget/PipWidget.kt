@@ -59,6 +59,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
+import com.openlauncher.app.ui.theme.PaneBorderWidth
+import com.openlauncher.app.ui.theme.PaneShape
+import com.openlauncher.app.ui.theme.paneOuterStroke
+import com.openlauncher.app.ui.theme.paneSurface
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -69,8 +73,6 @@ private val DIVIDER_LAYOUT_WIDTH = 10.dp
 private val DIVIDER_TOUCH_WIDTH = 24.dp
 private val DIVIDER_GRIP_WIDTH = 14.dp
 private val DIVIDER_GRIP_HEIGHT = 64.dp
-private val PIP_PANE_SHAPE = RoundedCornerShape(10.dp)
-private val PIP_PANE_BORDER_WIDTH = 1.5.dp
 private const val DIVIDER_INPUT_SETTLE_MS = 180L
 private const val SECOND_PANE_LAUNCH_DELAY_MS = 1_500L
 private const val THIRD_PANE_LAUNCH_DELAY_MS = 3_000L
@@ -407,10 +409,12 @@ private fun PaneDivider(
             },
         contentAlignment = Alignment.Center
     ) {
-        // Fill always matches whatever color the sidebar itself is actually
-        // rendering (see resolveSidebarColor) rather than a fixed neutral, so
-        // the two visually read as the same "chrome" language. No border —
-        // the shadow alone separates it from whatever's underneath.
+        // Fill comes from the sidebar's own colour (see resolveSidebarColor)
+        // rather than a fixed neutral, so the two read as the same "chrome"
+        // language. That colour is translucent by default and this sits over
+        // pane content rather than the wallpaper, so it matches in tone, not
+        // exactly. No border — the shadow alone separates it from whatever is
+        // underneath.
         val gripShape = RoundedCornerShape(DIVIDER_GRIP_WIDTH / 2)
         Box(
             Modifier
@@ -445,17 +449,10 @@ private fun PipPane(
     onAssign: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val tileBg = if (isDayMode) Color(0xFFF7F8F9) else Color(0xFF08090A)
+    val tileBg = paneSurface(isDayMode)
     val dimColor = if (isDayMode) Color(0xFF6C737A) else Color(0xFF737A82)
     val paneStroke = if (isDayMode) Color.Black.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.10f)
-    // Outer rim so the pane still reads as a distinct, lifted panel once an
-    // embedded app's own content fills it edge-to-edge (tileBg is otherwise
-    // invisible at that point — this border is the only remaining separation
-    // from the launcher background behind it). One even, bright tone all the
-    // way around — a bright-to-dark fade read as an uneven smudge rather than
-    // a lit edge, and native elevation shadow can't stand in for it on API 28
-    // either (ambient/spot shadow tinting only arrived in API 31).
-    val paneOuterStroke = SolidColor(lerp(Color.White, accent, 0.15f))
+    val paneRim = paneOuterStroke(accent)
     val context  = LocalContext.current
 
     if (packageName.isEmpty()) {
@@ -463,17 +460,17 @@ private fun PipPane(
             modifier = modifier
                 .shadow(
                     elevation    = 6.dp,
-                    shape        = PIP_PANE_SHAPE,
+                    shape        = PaneShape,
                     ambientColor = Color.Black.copy(alpha = 0.4f),
                     spotColor    = Color.Black.copy(alpha = 0.4f)
                 )
-                .clip(PIP_PANE_SHAPE)
+                .clip(PaneShape)
                 .background(
                     Brush.linearGradient(
                         listOf(accent.copy(alpha = if (isDayMode) 0.10f else 0.08f), tileBg, tileBg)
                     )
                 )
-                .border(PIP_PANE_BORDER_WIDTH, paneOuterStroke, PIP_PANE_SHAPE)
+                .border(PaneBorderWidth, paneRim, PaneShape)
                 .then(if (!isEditing) Modifier.clickable(onClick = onAssign) else Modifier),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -534,13 +531,13 @@ private fun PipPane(
         modifier = modifier
             .shadow(
                 elevation    = 6.dp,
-                shape        = PIP_PANE_SHAPE,
+                shape        = PaneShape,
                 ambientColor = Color.Black.copy(alpha = 0.4f),
                 spotColor    = Color.Black.copy(alpha = 0.4f)
             )
-            .clip(PIP_PANE_SHAPE)
+            .clip(PaneShape)
             .background(tileBg)
-            .border(PIP_PANE_BORDER_WIDTH, paneOuterStroke, PIP_PANE_SHAPE),
+            .border(PaneBorderWidth, paneRim, PaneShape),
         contentAlignment = Alignment.Center
     ) {
         if (embedFailed) {

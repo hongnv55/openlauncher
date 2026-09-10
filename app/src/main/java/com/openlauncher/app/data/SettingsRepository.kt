@@ -20,7 +20,6 @@ class SettingsRepository(private val context: Context) {
     private object Keys {
         val VEHICLE_NAME       = stringPreferencesKey("vehicle_name")
         val ACCENT_COLOR       = intPreferencesKey("accent_color")
-        val BG_COLOR           = intPreferencesKey("bg_color")
         val USE_CUSTOM_SIDEBAR_COLOR = booleanPreferencesKey("use_custom_sidebar_color")
         val SIDEBAR_COLOR      = intPreferencesKey("sidebar_color")
         val FONT_COLOR         = intPreferencesKey("font_color")
@@ -44,8 +43,6 @@ class SettingsRepository(private val context: Context) {
         val WIDGET_LAYOUT_JSON = stringPreferencesKey("widget_layout_json")
         val CAR_PLAY_PACKAGE      = stringPreferencesKey("car_play_package")
         val ANDROID_AUTO_PACKAGE  = stringPreferencesKey("android_auto_package")
-        val USE_GRADIENT          = booleanPreferencesKey("use_gradient")
-        val GRADIENT_END_COLOR    = intPreferencesKey("gradient_end_color")
         val WALLPAPER_DIM         = floatPreferencesKey("wallpaper_dim")
         val RIGHT_HAND_DRIVE      = booleanPreferencesKey("right_hand_drive") // kept for migration
         val SIDEBAR_POSITION           = stringPreferencesKey("sidebar_position")
@@ -68,8 +65,6 @@ class SettingsRepository(private val context: Context) {
         val SOUNDBOARD_PADS_JSON  = stringPreferencesKey("soundboard_pads_json")
         val VITALS_AS_BARS        = booleanPreferencesKey("vitals_as_bars")
         val SPEEDOMETER_DIGITAL_ONLY = booleanPreferencesKey("speedometer_digital_only")
-        val GRADIENT_DIRECTION    = stringPreferencesKey("gradient_direction")
-        val USE_CUSTOM_BG_COLOR   = booleanPreferencesKey("use_custom_bg_color")
         val HIDE_APP_HEADER        = booleanPreferencesKey("hide_app_header")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
         val HIDE_SYSTEM_NAV_BAR    = booleanPreferencesKey("hide_system_nav_bar")
@@ -106,7 +101,6 @@ class SettingsRepository(private val context: Context) {
             return AppSettings(
                 vehicleName    = prefs[Keys.VEHICLE_NAME]     ?: defaults.vehicleName,
                 accentColor    = prefs[Keys.ACCENT_COLOR]     ?: defaults.accentColor,
-                backgroundColor = prefs[Keys.BG_COLOR]        ?: defaults.backgroundColor,
                 useCustomSidebarColor = prefs[Keys.USE_CUSTOM_SIDEBAR_COLOR] ?: defaults.useCustomSidebarColor,
                 sidebarColor    = prefs[Keys.SIDEBAR_COLOR]   ?: defaults.sidebarColor,
                 fontColor      = prefs[Keys.FONT_COLOR]       ?: defaults.fontColor,
@@ -130,8 +124,6 @@ class SettingsRepository(private val context: Context) {
                 widgetLayout   = widgets,
                 carPlayPackage      = prefs[Keys.CAR_PLAY_PACKAGE]      ?: defaults.carPlayPackage,
                 androidAutoPackage  = prefs[Keys.ANDROID_AUTO_PACKAGE]  ?: defaults.androidAutoPackage,
-                useGradient      = prefs[Keys.USE_GRADIENT]        ?: defaults.useGradient,
-                gradientEndColor = prefs[Keys.GRADIENT_END_COLOR]  ?: defaults.gradientEndColor,
                 wallpaperDim     = prefs[Keys.WALLPAPER_DIM]       ?: defaults.wallpaperDim,
                 sidebarPosition  = prefs[Keys.SIDEBAR_POSITION]?.let { runCatching { SidebarPosition.valueOf(it) }.getOrNull() }
                                    ?: if (prefs[Keys.RIGHT_HAND_DRIVE] == true) SidebarPosition.RIGHT else defaults.sidebarPosition,
@@ -174,8 +166,6 @@ class SettingsRepository(private val context: Context) {
                 } ?: defaults.soundboardPads,
                 vitalsAsBars     = prefs[Keys.VITALS_AS_BARS] ?: defaults.vitalsAsBars,
                 speedometerDigitalOnly = prefs[Keys.SPEEDOMETER_DIGITAL_ONLY] ?: defaults.speedometerDigitalOnly,
-                gradientDirection = prefs[Keys.GRADIENT_DIRECTION]?.let { runCatching { GradientDirection.valueOf(it) }.getOrNull() } ?: defaults.gradientDirection,
-                useCustomBackgroundColor = prefs[Keys.USE_CUSTOM_BG_COLOR] ?: defaults.useCustomBackgroundColor,
                 hideAppHeader        = prefs[Keys.HIDE_APP_HEADER]        ?: defaults.hideAppHeader,
                 hideSystemStatusBar  = prefs[Keys.HIDE_SYSTEM_STATUS_BAR] ?: defaults.hideSystemStatusBar,
                 hideSystemNavBar     = prefs[Keys.HIDE_SYSTEM_NAV_BAR]    ?: defaults.hideSystemNavBar
@@ -197,7 +187,6 @@ class SettingsRepository(private val context: Context) {
     private fun writeSettings(prefs: MutablePreferences, s: AppSettings) {
             prefs[Keys.VEHICLE_NAME]       = s.vehicleName
             prefs[Keys.ACCENT_COLOR]       = s.accentColor
-            prefs[Keys.BG_COLOR]           = s.backgroundColor
             prefs[Keys.USE_CUSTOM_SIDEBAR_COLOR] = s.useCustomSidebarColor
             prefs[Keys.SIDEBAR_COLOR]      = s.sidebarColor
             prefs[Keys.FONT_COLOR]         = s.fontColor
@@ -221,8 +210,6 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.WIDGET_LAYOUT_JSON] = gson.toJson(s.widgetLayout)
             prefs[Keys.CAR_PLAY_PACKAGE]      = s.carPlayPackage
             prefs[Keys.ANDROID_AUTO_PACKAGE]  = s.androidAutoPackage
-            prefs[Keys.USE_GRADIENT]       = s.useGradient
-            prefs[Keys.GRADIENT_END_COLOR] = s.gradientEndColor
             prefs[Keys.WALLPAPER_DIM]      = s.wallpaperDim
             prefs[Keys.SIDEBAR_POSITION]           = s.sidebarPosition.name
             prefs[Keys.BOTTOM_BAR_SHORTCUTS_RIGHT] = s.bottomBarShortcutsRight
@@ -244,8 +231,6 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.SOUNDBOARD_PADS_JSON] = gson.toJson(s.soundboardPads)
             prefs[Keys.VITALS_AS_BARS]     = s.vitalsAsBars
             prefs[Keys.SPEEDOMETER_DIGITAL_ONLY] = s.speedometerDigitalOnly
-            prefs[Keys.GRADIENT_DIRECTION] = s.gradientDirection.name
-            prefs[Keys.USE_CUSTOM_BG_COLOR] = s.useCustomBackgroundColor
             prefs[Keys.HIDE_APP_HEADER]        = s.hideAppHeader
             prefs[Keys.HIDE_SYSTEM_STATUS_BAR] = s.hideSystemStatusBar
             prefs[Keys.HIDE_SYSTEM_NAV_BAR]    = s.hideSystemNavBar

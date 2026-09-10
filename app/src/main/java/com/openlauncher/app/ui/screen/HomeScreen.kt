@@ -144,23 +144,18 @@ fun HomeScreen(
 ) {
     val accent       = Color(settings.accentColor)
     val gap          = 10.dp
-    val hasWallpaper = settings.wallpaperUri.isNotEmpty()
-    val widgetBg     = when {
-        isDayMode    -> Color(0xFFFFFFFF)
-        hasWallpaper -> Color(0xCC000000)
-        else         -> Color.Black.copy(alpha = 0.35f)
-    }
-    val widgetBorder = when {
-        isDayMode    -> Color(0xFFCCCCCC)
-        hasWallpaper -> Color(0x22FFFFFF)
-        else         -> MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f)
-    }
-    val launcherBackground = when {
-        hasWallpaper                       -> Color.Black
-        settings.useCustomBackgroundColor -> Color(settings.backgroundColor)
-        isDayMode                          -> Color(0xFFEEEEEE)
-        else                               -> Color.Black
-    }
+    // There is now always a wallpaper behind the launcher — the one the user
+    // picked in Settings when set, otherwise the built-in per-mode asset (see
+    // the wallpaper layer in MainActivity). So the treatments below that used
+    // to be gated on "did the user pick a wallpaper" apply unconditionally:
+    // a widget's near-opaque backing and hairline border are what keep it
+    // legible over photographic content, and the 0.35-alpha / theme-derived
+    // variants only ever made sense over a flat fill, which no longer occurs.
+    val widgetBg     = if (isDayMode) Color(0xFFFFFFFF) else Color(0xCC000000)
+    val widgetBorder = if (isDayMode) Color(0xFFCCCCCC) else Color(0x22FFFFFF)
+    // Sits behind the embedded PIP surface rather than filling the screen, so
+    // it does not occlude the wallpaper.
+    val launcherBackground = Color.Black
     val headerTextColor   = if (isDayMode) Color(0xFF111111) else accent
     val statusIconColor   = if (isDayMode) Color(0xFF444444) else Color(0xFF666666)
     val controlIconColor  = if (isDayMode) Color(0xFF666666) else Color(0xFF444444)

@@ -8,7 +8,6 @@ enum class UnitSystem { METRIC, IMPERIAL }
 enum class AppFont { SYSTEM, JETBRAINS_MONO, SOURCE_CODE_PRO }
 enum class DayNightMode { DARK, LIGHT, AUTO, SYSTEM }
 enum class SidebarPosition { LEFT, RIGHT, BOTTOM }
-enum class GradientDirection { TOP_TO_BOTTOM, LEFT_TO_RIGHT, DIAGONAL, RADIAL }
 
 enum class DefaultShortcutIcon {
     NONE,
@@ -65,12 +64,6 @@ data class WidgetConfig(
 data class AppSettings(
     val vehicleName: String = "MY CAR",
     val accentColor: Int = Color(0xFF32FAA9).toArgb(),
-    // A near-black, cool-toned graphite rather than flat #000000 (which reads
-    // as dead/cheap) or the earlier pale lavender-gray (too close in
-    // brightness to most embedded apps' own white UI, so the gap/border
-    // frame around PIP panes barely read as a frame at all). Dark enough
-    // that colorful app icons and the mint accent pop against it.
-    val backgroundColor: Int = Color(0xFF202226).toArgb(),
     val fontColor: Int = Color.White.toArgb(),
     val wallpaperUri: String = "",
     val fontBold: Boolean = false,
@@ -96,14 +89,17 @@ data class AppSettings(
     val widgetLayout: List<WidgetConfig> = defaultWidgetLayout(),
     val carPlayPackage: String = "",
     val androidAutoPackage: String = "",
-    val useGradient: Boolean = false,
-    val gradientEndColor: Int = Color.Black.toArgb(),
-    val wallpaperDim: Float = 0.55f,
+    // Light touch, because the built-in wallpapers are shipped with the app and
+    // already sit at a usable brightness. 0.55 was set for arbitrary
+    // user-supplied photos, where a heavy veil is the only way to guarantee
+    // widget text stays readable — on the built-ins it just multiplied every
+    // pixel by 0.45 and left the scene muddy. Still a slider, so anyone who
+    // picks a bright or busy photo can put the veil back.
+    val wallpaperDim: Float = 0.10f,
     val sidebarPosition: SidebarPosition = SidebarPosition.LEFT,
-    // When off, the sidebar's color is derived automatically from
-    // backgroundColor (an "elevated card" tint, lighter than the background
-    // by an amount that scales with how dark that background already is —
-    // see Sidebar.kt). Turning this on overrides that with an exact color.
+    // When off, the sidebar renders as frosted glass over the wallpaper
+    // (see resolveSidebarColor in Sidebar.kt). Turning this on overrides that
+    // with an exact, opaque color.
     val useCustomSidebarColor: Boolean = false,
     val sidebarColor: Int = Color(0xFF46484C).toArgb(),
     val bottomBarShortcutsRight: Boolean = false,
@@ -143,8 +139,6 @@ data class AppSettings(
     val soundboardPads: List<SoundPadConfig> = defaultSoundboardPads(),
     val vitalsAsBars: Boolean = false,
     val speedometerDigitalOnly: Boolean = false,
-    val gradientDirection: GradientDirection = GradientDirection.DIAGONAL,
-    val useCustomBackgroundColor: Boolean = true,
     // In-app header row (vehicle name, wifi/data icons, edit-widgets button) —
     // distinct from the two below, which are the real Android system bars.
     val hideAppHeader: Boolean = true,

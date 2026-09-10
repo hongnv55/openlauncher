@@ -19,14 +19,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.openlauncher.app.data.DayNightMode
 import com.openlauncher.app.data.SidebarPosition
-import com.openlauncher.app.data.GradientDirection
 import com.openlauncher.app.model.NavDestination
 import com.openlauncher.app.ui.components.Sidebar
 import com.openlauncher.app.ui.screen.*
@@ -175,22 +179,7 @@ class MainActivity : ComponentActivity() {
             val appPickerTarget by vm.appPickerTarget.collectAsStateWithLifecycle()
 
             val accent         = Color(settings.accentColor)
-            val bg             = if (settings.useCustomBackgroundColor) {
-                Color(settings.backgroundColor)
-            } else {
-                if (isDayMode) Color(0xFFEEEEEE) else Color.Black
-            }
             val textColor      = if (isDayMode) Color(0xFF111111) else Color(settings.fontColor)
-            val bgGradientEnd  = Color(settings.gradientEndColor)
-            val bgBrush        = if (settings.useCustomBackgroundColor && settings.useGradient) {
-                val colors = listOf(bg, bgGradientEnd)
-                when (settings.gradientDirection) {
-                    GradientDirection.TOP_TO_BOTTOM -> androidx.compose.ui.graphics.Brush.verticalGradient(colors)
-                    GradientDirection.LEFT_TO_RIGHT -> androidx.compose.ui.graphics.Brush.horizontalGradient(colors)
-                    GradientDirection.DIAGONAL -> androidx.compose.ui.graphics.Brush.linearGradient(colors)
-                    GradientDirection.RADIAL -> androidx.compose.ui.graphics.Brush.radialGradient(colors)
-                }
-            } else null
 
             val baseDensity = LocalDensity.current
             CompositionLocalProvider(
@@ -203,13 +192,11 @@ class MainActivity : ComponentActivity() {
                     Box(modifier = Modifier.fillMaxSize().background(Color.Black))
                 } else OpenLauncherTheme(
                     accent     = accent,
-                    background = bg,
                     textColor  = textColor,
                     fontBold   = settings.fontBold,
                     textScale  = settings.textScale,
                     appFont    = settings.appFont,
-                    isDayMode  = isDayMode,
-                    useCustomBg = settings.useCustomBackgroundColor
+                    isDayMode  = isDayMode
                 ) {
                 if (!settings.onboardingCompleted) {
                     OnboardingScreen(
@@ -222,9 +209,23 @@ class MainActivity : ComponentActivity() {
                     )
                 } else {
                     val statusBarHeightDp = with(LocalDensity.current) { statusBarHeightPx().toDp() }
+                    // The wallpaper layer's own window rect, in pixels. The sidebar
+                    // needs it to place an aligned copy of the wallpaper behind its
+                    // glass, and this cannot be derived in dp for two reasons: this
+                    // Box is offset by the status-bar/nav-bar padding below, and the
+                    // sidebar composes at its own density (see sidebarDensity), so
+                    // the same dp value is a different number of pixels inside it.
+                    // IntOffset/IntSize compare by value, so these writes settle
+                    // after one extra layout pass rather than looping.
+                    var wallpaperOriginPx by remember { mutableStateOf(IntOffset.Zero) }
+                    var wallpaperSizePx   by remember { mutableStateOf(IntSize.Zero) }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .onGloballyPositioned {
+                                wallpaperOriginPx = it.positionInWindow().round()
+                                wallpaperSizePx   = it.size
+                            }
                             .padding(top = if (!settings.hideSystemStatusBar) statusBarHeightDp else 0.dp)
                             // Conditional on our own setting, unlike the status
                             // bar above — SYSTEM_UI_FLAG_LAYOUT_STABLE (always
@@ -243,19 +244,41 @@ class MainActivity : ComponentActivity() {
                                     Modifier.windowInsetsPadding(WindowInsets.navigationBars)
                                 else Modifier
                             )
-                            .let { m -> if (bgBrush != null) m.background(bgBrush) else m.background(bg) }
+                            // Base layer under the wallpaper. Only ever visible
+                            // if the wallpaper fails to decode, so it is a plain
+                            // black backstop rather than a themed fill.
+                            .background(Color.Black)
                     ) {
-                        // Optional wallpaper layer
-                        if (settings.wallpaperUri.isNotEmpty()) {
-                            AsyncImage(
-                                model              = android.net.Uri.parse(settings.wallpaperUri),
-                                contentDescription = null,
-                                contentScale       = androidx.compose.ui.layout.ContentScale.Crop,
-                                modifier           = Modifier.fillMaxSize()
-                            )
-                            Box(modifier = Modifier.fillMaxSize()
-                                .background(Color.Black.copy(alpha = settings.wallpaperDim)))
+                        // Wallpaper layer. A wallpaper the user picked in Settings
+                        // wins; with no override we fall back to the built-in
+                        // asset for the current mode, so the launcher ships with
+                        // a wallpaper rather than a flat fill.
+                        //
+                        // ContentScale.Crop (centre crop) is what makes one asset
+                        // per mode enough: the images are 2670x1878 (1.42:1) but
+                        // get shown on everything from a phone to a 16:9 head
+                        // unit, so Crop scales to fill the shorter axis and trims
+                        // the overflow evenly off both sides, always keeping the
+                        // centre of the image. Fit would letterbox and FillBounds
+                        // would distort.
+                        //
+                        // Routed through Coil rather than painterResource because
+                        // Coil downsamples the decode to the layout size — decoded
+                        // at full resolution each of these is ~20MB of
+                        // ARGB_8888, and switching day/night would hold two.
+                        val wallpaperModel: Any = if (settings.wallpaperUri.isNotEmpty()) {
+                            android.net.Uri.parse(settings.wallpaperUri)
+                        } else {
+                            if (isDayMode) R.drawable.open_light else R.drawable.open_dark
                         }
+                        AsyncImage(
+                            model              = wallpaperModel,
+                            contentDescription = null,
+                            contentScale       = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier           = Modifier.fillMaxSize()
+                        )
+                        Box(modifier = Modifier.fillMaxSize()
+                            .background(Color.Black.copy(alpha = settings.wallpaperDim)))
 
                         val isBottomBar    = settings.sidebarPosition == SidebarPosition.BOTTOM
 
@@ -269,6 +292,12 @@ class MainActivity : ComponentActivity() {
                                     currentDest   = nav,
                                     settings      = settings,
                                     isHorizontal  = isBottomBar,
+                                    // Same model the fullscreen layer above uses, so
+                                    // the panel's backdrop is the same image —
+                                    // including a user-picked wallpaperUri.
+                                    wallpaperModel    = wallpaperModel,
+                                    wallpaperOriginPx = wallpaperOriginPx,
+                                    wallpaperSizePx   = wallpaperSizePx,
                                     installedIconFor = { pkg ->
                                         apps.find { it.packageName == pkg }?.icon
                                     },

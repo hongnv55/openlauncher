@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.platform.LocalTextInputService
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.openlauncher.app.model.AppInfo
 import com.openlauncher.app.ui.theme.LocalDayMode
+import com.openlauncher.app.ui.theme.PaneInset
+import com.openlauncher.app.ui.theme.contentPane
 
 // FAVORITED first — it's the default-selected/focused tab on open.
 private enum class AppFilter { FAVORITED, USER, SYSTEM, ALL }
@@ -61,7 +62,6 @@ fun AppLibraryScreen(
     modifier: Modifier = Modifier
 ) {
     val isDayMode     = LocalDayMode.current
-    val screenBg      = MaterialTheme.colorScheme.background
     val headerColor   = MaterialTheme.colorScheme.onBackground
     val placeholderC  = if (isDayMode) Color(0xFF999999) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
     val dividerColor  = if (isDayMode) Color(0xFFCCCCCC) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f)
@@ -87,7 +87,17 @@ fun AppLibraryScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize().background(screenBg)) {
+    // The same content card a PIP pane gets, at the same inset, so navigating
+    // Home -> Apps swaps what is inside one persistent frame instead of
+    // replacing the whole screen. It also drops the old full-bleed
+    // colorScheme.background fill, which was painting the pre-wallpaper
+    // background colour straight over the wallpaper.
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(PaneInset)
+            .contentPane(isDayMode, accent)
+    ) {
         // ── Header ─────────────────────────────────────────────────────────────
         Row(
             modifier = Modifier
