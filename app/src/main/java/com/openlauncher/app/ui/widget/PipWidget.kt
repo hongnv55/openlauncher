@@ -450,7 +450,7 @@ private fun PipPane(
     val tileBg = paneSurface(isDayMode)
     val dimColor = if (isDayMode) Color(0xFF6C737A) else Color(0xFF737A82)
     val paneStroke = if (isDayMode) Color.Black.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.10f)
-    val paneRim = paneOuterStroke(accent)
+    val paneRim = paneOuterStroke(isDayMode, accent)
     val context  = LocalContext.current
 
     if (packageName.isEmpty()) {

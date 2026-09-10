@@ -6,11 +6,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -40,9 +39,16 @@ import androidx.compose.ui.unit.dp
  *  softer on a ~1800px-wide pane than on a 56dp bar. */
 val PaneShape: Shape = RoundedCornerShape(12.dp)
 
-/** Slightly heavier than the sidebar's 1dp rim — these surfaces are much larger,
- *  and this stroke is opaque rather than alpha-blended (see [paneOuterStroke]). */
-val PaneBorderWidth = 1.5.dp
+/**
+ * Exactly one physical pixel, whatever the density.
+ *
+ * `Dp.Hairline` rather than a small dp value because `Modifier.border` widens
+ * with `ceil(width.toPx())`: at 200dpi both the old 1.5dp and a nominally
+ * thinner 1dp compute to 1.875px and 1.25px, and both ceil to the same 2px, so
+ * dialling the dp down changed nothing on screen. Compose special-cases
+ * `Dp.Hairline` to 1px, which is the only way to actually get finer here.
+ */
+val PaneBorderWidth = Dp.Hairline
 
 val PaneElevation = 6.dp
 
@@ -59,6 +65,18 @@ fun paneSurface(isDayMode: Boolean): Color =
  * content fills it edge-to-edge — at which point [paneSurface] is invisible and
  * this border is the only remaining separation from the wallpaper behind it.
  *
+ * Keyed to the mode, like every other tone here, because both things the rim has
+ * to separate flip with it: the card's own fill goes from near-white to
+ * near-black, and the wallpaper behind it from a bright scene to a dark one. So
+ * the rim goes darker than the card in day mode and lighter at night, which is
+ * the same rule [paneDividerGrip] and the sidebar's hairline follow.
+ *
+ * The mode tone is then pulled 15% toward the accent, so the edge belongs to the
+ * user's palette without being coloured by it — at 15% of a mid grey the result
+ * is still read as grey, just not a neutral one. Note this reaches all three
+ * destinations now that [contentPane] carries it, not only the PIP pane it was
+ * originally written for, so re-picking the accent shifts every card's edge.
+ *
  * One even, opaque tone all the way around. Deliberately *not* the sidebar's
  * alpha rim: that works on glass because the wallpaper modulates it into a lit
  * edge, but over an embedded app's own pixels an alpha rim blends against
@@ -67,8 +85,12 @@ fun paneSurface(isDayMode: Boolean): Color =
  * rather than a lit edge. Native elevation shadow cannot stand in for it on
  * API 28 either, since ambient/spot shadow tinting only arrived in API 31.
  */
-fun paneOuterStroke(accent: Color): Brush =
-    SolidColor(lerp(Color.White, accent, 0.15f))
+fun paneOuterStroke(isDayMode: Boolean, accent: Color): Color =
+    lerp(
+        if (isDayMode) Color(0xFFA9B1BC) else Color(0xFF7C848F),
+        accent,
+        0.15f
+    )
 
 /**
  * The drag grip on a PIP pane divider.
@@ -112,4 +134,4 @@ fun Modifier.contentPane(
     )
     .clip(shape)
     .background(paneSurface(isDayMode))
-    .border(PaneBorderWidth, paneOuterStroke(accent), shape)
+    .border(PaneBorderWidth, paneOuterStroke(isDayMode, accent), shape)
