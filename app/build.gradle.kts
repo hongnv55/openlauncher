@@ -37,14 +37,46 @@ android {
             initWith(getByName("debug"))
             matchingFallbacks += listOf("debug")
             manifestPlaceholders["sharedUserId"] = "android.uid.system"
+            // Tree-shaking only, names kept — see proguard-rules-debug.pro.
+            // Without this the variant that actually gets installed carries
+            // 13.7MB of unreferenced icon classes.
+            //
+            // isDebuggable has to go with it: AGP runs R8 in debug mode for a
+            // debuggable variant, which skips tree-shaking entirely and only
+            // warns about it, so minifyEnabled alone changed nothing. Nothing
+            // here needs a debugger attached — the PIP embedder is diagnosed
+            // from logcat, which behaves the same either way, and hidden-API
+            // access comes from the platform signature rather than from being
+            // debuggable.
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+                "proguard-rules-debug.pro"
+            )
         }
         release {
-            isMinifyEnabled = false
+            // R8 on: the app's own code is 675KB of DEX while
+            // material-icons-extended is 13.7MB of it, four of whose five icon
+            // styles have zero references. Tree-shaking is the only thing that
+            // removes them — the dependency ships every icon as a separate
+            // class, so nothing about how they are imported changes what lands
+            // in the APK.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            manifestPlaceholders["sharedUserId"] = ""
+            // Same system UID the aospDebug variant uses. The PIP embedder's
+            // reflective calls into @hide platform APIs need UID 1000 plus a
+            // platform signature, so a release build without this can install
+            // but cannot embed anything. Gradle leaves this variant unsigned
+            // (no signingConfig); apksigner re-signs it with the device
+            // platform key afterwards, which is what actually grants the UID.
+            manifestPlaceholders["sharedUserId"] = "android.uid.system"
         }
     }
 
