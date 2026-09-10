@@ -16,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openlauncher.app.util.LocationData
+import com.openlauncher.app.R
 import kotlin.math.*
 
 import androidx.compose.material3.MaterialTheme
@@ -114,7 +116,7 @@ fun AltimeterWidget(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "ALTITUDE",
+                text = stringResource(R.string.widget_altitude),
                 color = labelColor,
                 fontSize = 7.sp,
                 letterSpacing = 1.sp,
@@ -123,8 +125,8 @@ fun AltimeterWidget(
             Text(
                 text = if (location != null) {
                     val altVal = if (isMetric) location.altitude else location.altitude * 3.28084
-                    val unit = if (isMetric) "m" else "ft"
-                    "%,.0f %s".format(altVal, unit)
+                    val unit = stringResource(if (isMetric) R.string.unit_meter_short else R.string.unit_foot_short)
+                    stringResource(R.string.altitude_value, altVal, unit)
                 } else "—",
                 color = if (isDayMode) Color(0xFF111111) else MaterialTheme.colorScheme.onBackground,
                 fontSize = 15.sp,
@@ -153,12 +155,12 @@ fun AltimeterWidget(
             verticalAlignment     = Alignment.Bottom
         ) {
             Column {
-                Text("ROLL",  color = labelColor, fontSize = 7.sp, letterSpacing = 1.sp)
-                Text("%.1f°".format(displayRoll),  color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.widget_roll), color = labelColor, fontSize = 7.sp, letterSpacing = 1.sp)
+                Text(stringResource(R.string.angle_degrees, displayRoll), color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("PITCH", color = labelColor, fontSize = 7.sp, letterSpacing = 1.sp, textAlign = TextAlign.End)
-                Text("%.1f°".format(displayPitch), color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                Text(stringResource(R.string.widget_pitch), color = labelColor, fontSize = 7.sp, letterSpacing = 1.sp, textAlign = TextAlign.End)
+                Text(stringResource(R.string.angle_degrees, displayPitch), color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
             }
         }
     }

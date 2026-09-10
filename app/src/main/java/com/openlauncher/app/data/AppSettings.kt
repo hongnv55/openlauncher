@@ -8,6 +8,10 @@ enum class UnitSystem { METRIC, IMPERIAL }
 enum class AppFont { SYSTEM, JETBRAINS_MONO, SOURCE_CODE_PRO }
 enum class DayNightMode { DARK, LIGHT, AUTO, SYSTEM }
 enum class SidebarPosition { LEFT, RIGHT, BOTTOM }
+// Always forces the app's own UI into one of these two, independent of the
+// device's own locale (see LocaleHelper.wrap, applied in
+// MainActivity.attachBaseContext) — no "follow system" option.
+enum class AppLanguage { ENGLISH, VIETNAMESE }
 
 enum class DefaultShortcutIcon {
     NONE,
@@ -106,6 +110,7 @@ data class AppSettings(
     val showAltimeter: Boolean = false,
     val showSpeedometer: Boolean = false,
     val dayNightMode: DayNightMode = DayNightMode.LIGHT,
+    val appLanguage: AppLanguage = AppLanguage.VIETNAMESE,
     val showPip: Boolean = true,
     // Up to 3 apps shown side-by-side in the PIP widget ("" = slot unassigned)
     val pipAppPackages: List<String> = listOf("", "", ""),
@@ -146,9 +151,10 @@ data class AppSettings(
     val hideSystemNavBar: Boolean = true
 )
 
-fun defaultShortcuts() = listOf(
-    ShortcutConfig()
-)
+// Always exactly 4 — the sidebar itself shows all 4 fixed positions directly
+// (press-and-hold an empty one to assign, an assigned one to change/clear
+// it); there is no separate add/remove-slot UI in Settings anymore.
+fun defaultShortcuts() = List(4) { ShortcutConfig() }
 
 fun defaultWidgetLayout() = listOf(
     WidgetConfig("PIP", gridX = 0, gridY = 0, spanX = GRID_COLS, spanY = GRID_ROWS)

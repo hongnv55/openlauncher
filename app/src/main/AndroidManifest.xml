@@ -50,7 +50,7 @@
     </queries>
 
     <application
-        android:label="Open Launcher"
+        android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
@@ -81,7 +81,7 @@
         <service
             android:name=".service.MediaListenerService"
             android:exported="true"
-            android:label="Open Launcher Media"
+            android:label="@string/media_label"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />

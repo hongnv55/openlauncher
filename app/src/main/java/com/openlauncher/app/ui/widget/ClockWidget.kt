@@ -10,10 +10,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openlauncher.app.data.ClockStyle
+import com.openlauncher.app.R
 import kotlinx.coroutines.delay
+import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.cos
 import kotlin.math.sin
@@ -49,6 +54,7 @@ fun ClockWidget(
 
 @Composable
 private fun DigitalClock(cal: Calendar, contentColor: Color, subColor: Color) {
+    val locale = LocalConfiguration.current.locales[0]
     val hour   = cal.get(Calendar.HOUR_OF_DAY)
     val minute = cal.get(Calendar.MINUTE)
 
@@ -65,7 +71,7 @@ private fun DigitalClock(cal: Calendar, contentColor: Color, subColor: Color) {
             letterSpacing = 1.sp
         )
         Text(
-            text     = buildDateString(cal),
+            text     = DateFormat.getDateInstance(DateFormat.FULL, locale).format(cal.time),
             color    = subColor,
             fontSize = 12.sp
         )
@@ -74,6 +80,7 @@ private fun DigitalClock(cal: Calendar, contentColor: Color, subColor: Color) {
 
 @Composable
 private fun AnalogClock(cal: Calendar, accent: Color, isDayMode: Boolean = false) {
+    val locale = LocalConfiguration.current.locales[0]
     val hour   = cal.get(Calendar.HOUR).toFloat()
     val minute = cal.get(Calendar.MINUTE).toFloat()
     val second = cal.get(Calendar.SECOND).toFloat()
@@ -161,7 +168,7 @@ private fun AnalogClock(cal: Calendar, accent: Color, isDayMode: Boolean = false
 
         // Date inset — centered, above 6 o'clock position like a real watch
         Text(
-            text      = shortDateString(cal),
+            text      = SimpleDateFormat("EEE d", locale).format(cal.time).uppercase(locale),
             color     = if (isDayMode) Color(0xFF999999) else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
             fontSize  = 9.sp,
             letterSpacing = 1.5.sp,
@@ -172,21 +179,10 @@ private fun AnalogClock(cal: Calendar, accent: Color, isDayMode: Boolean = false
     }
 }
 
-private fun shortDateString(cal: Calendar): String {
-    val days   = arrayOf("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT")
-    return "${days[cal.get(Calendar.DAY_OF_WEEK) - 1]} ${cal.get(Calendar.DAY_OF_MONTH)}"
-}
-
-private fun buildDateString(cal: Calendar): String {
-    val days   = arrayOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
-    val months = arrayOf("January", "February", "March", "April", "May", "June",
-                         "July", "August", "September", "October", "November", "December")
-    return "${days[cal.get(Calendar.DAY_OF_WEEK) - 1]}, ${months[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.DAY_OF_MONTH)}"
-}
-
-fun clockTimeLabel(cal: Calendar): String = when (cal.get(Calendar.HOUR_OF_DAY)) {
-    in 5..11  -> "MORNING"
-    in 12..16 -> "AFTERNOON"
-    in 17..20 -> "EVENING"
-    else      -> "NIGHT"
-}
+@Composable
+fun clockTimeLabel(cal: Calendar): String = stringResource(when (cal.get(Calendar.HOUR_OF_DAY)) {
+    in 5..11  -> R.string.time_morning
+    in 12..16 -> R.string.time_afternoon
+    in 17..20 -> R.string.time_evening
+    else      -> R.string.time_night
+}).uppercase()

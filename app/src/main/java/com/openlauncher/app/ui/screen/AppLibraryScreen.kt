@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.openlauncher.app.model.AppInfo
+import com.openlauncher.app.R
 import com.openlauncher.app.ui.theme.LocalDayMode
 import com.openlauncher.app.ui.theme.PaneInset
 import com.openlauncher.app.ui.theme.contentPane
@@ -49,7 +51,7 @@ fun AppLibraryScreen(
     isPickerMode: Boolean,
     pickerSlot: Int?,
     isCarPlayPickerMode: Boolean,
-    carPlayPickerLabel: String = "CHOOSE CARPLAY APP",
+    carPlayPickerLabel: String? = null,
     accent: Color,
     iconScale: Float = 1.4f,
     gridColumns: Int = 6,
@@ -108,9 +110,9 @@ fun AppLibraryScreen(
         ) {
             Text(
                 text          = when {
-                    isCarPlayPickerMode -> carPlayPickerLabel
-                    anyPickerMode       -> "CHOOSE APP"
-                    else                -> "APPS"
+                    isCarPlayPickerMode -> carPlayPickerLabel ?: stringResource(R.string.choose_carplay_app)
+                    anyPickerMode       -> stringResource(R.string.choose_app)
+                    else                -> stringResource(R.string.apps)
                 },
                 style         = MaterialTheme.typography.titleLarge,
                 color         = if (anyPickerMode) accent else headerColor,
@@ -127,10 +129,10 @@ fun AppLibraryScreen(
                             label    = {
                                 Text(
                                     when (filter) {
-                                        AppFilter.FAVORITED -> "Favorited"
-                                        AppFilter.USER   -> "Installed"
-                                        AppFilter.SYSTEM -> "System"
-                                        AppFilter.ALL    -> "All"
+                                        AppFilter.FAVORITED -> stringResource(R.string.filter_favorited)
+                                        AppFilter.USER   -> stringResource(R.string.filter_installed)
+                                        AppFilter.SYSTEM -> stringResource(R.string.filter_system)
+                                        AppFilter.ALL    -> stringResource(R.string.filter_all)
                                     },
                                     fontSize = 13.sp,
                                     letterSpacing = 0.5.sp
@@ -169,7 +171,7 @@ fun AppLibraryScreen(
                             .onFocusChanged { searchFocused = it.isFocused },
                         decorationBox = { inner ->
                             Box {
-                                if (query.isEmpty()) Text("Search…", color = placeholderC, fontSize = 13.sp)
+                                if (query.isEmpty()) Text(stringResource(R.string.search_hint), color = placeholderC, fontSize = 13.sp)
                                 inner()
                             }
                         }
@@ -191,8 +193,8 @@ fun AppLibraryScreen(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     if (appFilter == AppFilter.FAVORITED && !anyPickerMode)
-                        "No favorited apps yet — tap the star on any app to add it here"
-                    else "No apps found",
+                        stringResource(R.string.no_favorited_apps)
+                    else stringResource(R.string.no_apps_found),
                     color = emptyColor, letterSpacing = 1.sp, fontSize = 12.sp
                 )
             }
@@ -304,7 +306,7 @@ private fun AppTile(
             val starTint = if (isFavorite) Color(0xFFFFC107) else if (isDayMode) Color(0xFFBBBBBB) else Color(0xFF444444)
             Icon(
                 imageVector        = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarOutline,
-                contentDescription = if (isFavorite) "Unfavorite" else "Favorite",
+                contentDescription = stringResource(if (isFavorite) R.string.unfavorite else R.string.favorite),
                 tint               = starTint,
                 modifier = Modifier
                     .align(Alignment.TopEnd)

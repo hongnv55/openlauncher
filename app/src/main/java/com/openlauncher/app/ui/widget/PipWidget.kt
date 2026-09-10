@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -60,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
 import com.openlauncher.app.ui.theme.PaneBorderWidth
+import com.openlauncher.app.R
 import com.openlauncher.app.ui.theme.paneDividerGrip
 import com.openlauncher.app.ui.theme.PaneShape
 import com.openlauncher.app.ui.theme.paneOuterStroke
@@ -485,7 +487,7 @@ private fun PipPane(
             }
             Spacer(Modifier.height(13.dp))
             Text(
-                "ADD APPLICATION",
+                stringResource(R.string.add_application).uppercase(),
                 color = if (isDayMode) Color(0xFF25282B) else Color(0xFFD8DDE2),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -494,7 +496,7 @@ private fun PipPane(
             )
             Spacer(Modifier.height(5.dp))
             Text(
-                "CHOOSE WHAT RUNS IN THIS PANE",
+                stringResource(R.string.choose_pane_application).uppercase(),
                 color = dimColor.copy(alpha = 0.72f),
                 fontSize = 7.sp,
                 letterSpacing = 0.7.sp,
@@ -573,7 +575,7 @@ private fun PipPane(
                     maxLines      = 1
                 )
                 Text(
-                    text = "TAP TO RETRY",
+                    text = stringResource(R.string.tap_to_retry).uppercase(),
                     color = accent,
                     fontSize = 7.sp,
                     fontWeight = FontWeight.Medium,

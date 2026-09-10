@@ -8,7 +8,9 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import java.io.IOException
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "launcher_settings")
@@ -48,6 +50,7 @@ class SettingsRepository(private val context: Context) {
         val SIDEBAR_POSITION           = stringPreferencesKey("sidebar_position")
         val BOTTOM_BAR_SHORTCUTS_RIGHT = booleanPreferencesKey("bottom_bar_shortcuts_right")
         val DAY_NIGHT_MODE        = stringPreferencesKey("day_night_mode")
+        val APP_LANGUAGE          = stringPreferencesKey("app_language")
         val SHOW_PIP              = booleanPreferencesKey("show_pip")
         val PIP_APP_PACKAGES_JSON = stringPreferencesKey("pip_app_packages_json")
         val PIP_PANE_SPLIT        = floatPreferencesKey("pip_pane_split")
@@ -129,6 +132,7 @@ class SettingsRepository(private val context: Context) {
                                    ?: if (prefs[Keys.RIGHT_HAND_DRIVE] == true) SidebarPosition.RIGHT else defaults.sidebarPosition,
                 bottomBarShortcutsRight = prefs[Keys.BOTTOM_BAR_SHORTCUTS_RIGHT] ?: defaults.bottomBarShortcutsRight,
                 dayNightMode     = prefs[Keys.DAY_NIGHT_MODE]?.let { runCatching { DayNightMode.valueOf(it) }.getOrNull() } ?: defaults.dayNightMode,
+                appLanguage      = prefs[Keys.APP_LANGUAGE]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() } ?: defaults.appLanguage,
                 showPip          = prefs[Keys.SHOW_PIP]         ?: defaults.showPip,
                 pipAppPackages   = prefs[Keys.PIP_APP_PACKAGES_JSON]?.let {
                     runCatching {
@@ -214,6 +218,7 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.SIDEBAR_POSITION]           = s.sidebarPosition.name
             prefs[Keys.BOTTOM_BAR_SHORTCUTS_RIGHT] = s.bottomBarShortcutsRight
             prefs[Keys.DAY_NIGHT_MODE]     = s.dayNightMode.name
+            prefs[Keys.APP_LANGUAGE]       = s.appLanguage.name
             prefs[Keys.SHOW_PIP]           = s.showPip
             prefs[Keys.PIP_APP_PACKAGES_JSON] = gson.toJson(s.pipAppPackages)
             prefs[Keys.PIP_PANE_SPLIT]     = s.pipPaneSplit
@@ -238,5 +243,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun resetToDefaults() {
         context.dataStore.edit { it.clear() }
+    }
+
+    // Locale has to be applied in Activity.attachBaseContext, which runs
+    // before the ViewModel (and so the normal settingsFlow collection)
+    // exists — a one-off blocking read of just this one key is the standard
+    // workaround for that ordering problem.
+    fun readAppLanguageBlocking(): AppLanguage = runBlocking {
+        val prefs = context.dataStore.data.first()
+        prefs[Keys.APP_LANGUAGE]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() } ?: AppSettings().appLanguage
     }
 }

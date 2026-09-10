@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.SurfaceHolder
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.openlauncher.app.R
 import com.openlauncher.app.ui.widget.EmbeddedSurfaceView
 import com.openlauncher.app.ui.widget.TaskEmbedder
 
@@ -25,7 +26,7 @@ class PipPlacementProbeActivity : Activity() {
             setBackgroundColor(Color.rgb(24, 24, 24))
             textSize = 16f
             setPadding(24, 16, 24, 16)
-            text = "PIP placement probe\ntarget=$targetPackage\nwaiting for Surface"
+            text = getString(R.string.pip_placement_probe_waiting, targetPackage)
         }
         val surface = EmbeddedSurfaceView(this).apply {
             this.embedder = this@PipPlacementProbeActivity.embedder
@@ -34,8 +35,13 @@ class PipPlacementProbeActivity : Activity() {
                 override fun surfaceCreated(holder: SurfaceHolder) {
                     val frame = holder.surfaceFrame
                     val densityDpi = resources.displayMetrics.densityDpi
-                    status.text = "PIP placement probe\ntarget=$targetPackage\n" +
-                        "surface=${frame.width()}x${frame.height()} density=$densityDpi"
+                    status.text = getString(
+                        R.string.pip_placement_probe_surface,
+                        targetPackage,
+                        frame.width(),
+                        frame.height(),
+                        densityDpi
+                    )
                     this@PipPlacementProbeActivity.embedder.attach(
                         targetPackage,
                         holder.surface,
@@ -44,7 +50,7 @@ class PipPlacementProbeActivity : Activity() {
                         densityDpi
                     ) { success ->
                         status.post {
-                            status.append("\nlaunchAccepted=$success\nSee TaskEmbedder logs for actual display")
+                            status.append(getString(R.string.pip_placement_probe_launch_result, success))
                         }
                     }
                 }

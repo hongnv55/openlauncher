@@ -23,10 +23,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openlauncher.app.BuildConfig
+import com.openlauncher.app.R
 import com.openlauncher.app.data.AppFont
+import com.openlauncher.app.data.AppLanguage
 import com.openlauncher.app.data.AppSettings
 import com.openlauncher.app.data.DayNightMode
 import kotlin.math.roundToInt
@@ -106,7 +110,7 @@ fun SettingsScreen(
     ) {
         // ── Title ────────────────────────────────────────────────────────────
         Text(
-            text          = "SETTINGS",
+            text          = stringResource(R.string.settings).uppercase(),
             style         = MaterialTheme.typography.titleLarge,
             color         = if (isDayMode) Color(0xFF111111) else accent,
             letterSpacing = 3.sp,
@@ -115,8 +119,8 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(4.dp))
 
-        // ── Permissions ──────────────────────────────────────────────────────
-        SettingsSection("Permissions") {
+        // ── System ───────────────────────────────────────────────────────────
+        SettingsSection(stringResource(R.string.system)) {
             val isMediaConnected by com.openlauncher.app.service.MediaListenerService.isConnected.collectAsState()
 
             // Bumped on ON_RESUME so statuses refresh when the user returns from
@@ -157,9 +161,8 @@ fun SettingsScreen(
             ) { permissionRefresh++ }
 
             SettingsButton(
-                label    = "Set as Default Launcher",
-                sublabel = if (isDefaultLauncher) "Active — Open Launcher is the home app"
-                           else "Required so the head unit boots into Open Launcher",
+                label    = stringResource(R.string.set_default_launcher),
+                sublabel = stringResource(if (isDefaultLauncher) R.string.default_launcher_active else R.string.default_launcher_required),
                 icon     = Icons.Default.Home,
                 accent   = if (isDefaultLauncher) accent else Color(0xFF993333),
                 onClick  = {
@@ -196,8 +199,8 @@ fun SettingsScreen(
             )
             SettingsDivider()
             SettingsButton(
-                label    = "Notification Access",
-                sublabel = if (isMediaConnected) "Granted — media controls active" else "Required for Now Playing widget",
+                label    = stringResource(R.string.notification_access),
+                sublabel = stringResource(if (isMediaConnected) R.string.notification_granted else R.string.notification_required),
                 icon     = if (isMediaConnected) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff,
                 accent   = if (isMediaConnected) accent else Color(0xFF993333),
                 onClick  = {
@@ -209,8 +212,8 @@ fun SettingsScreen(
             )
             SettingsDivider()
             SettingsButton(
-                label    = "Draw Over Other Apps",
-                sublabel = if (canDrawOverlays) "Granted — PIP overlay enabled" else "Required for PIP floating window",
+                label    = stringResource(R.string.draw_over_apps),
+                sublabel = stringResource(if (canDrawOverlays) R.string.overlay_granted else R.string.overlay_required),
                 icon     = if (canDrawOverlays) Icons.Default.Layers else Icons.Default.LayersClear,
                 accent   = if (canDrawOverlays) accent else Color(0xFF993333),
                 onClick  = {
@@ -228,8 +231,8 @@ fun SettingsScreen(
             )
             SettingsDivider()
             SettingsButton(
-                label    = "Location Access",
-                sublabel = if (hasLocation) "Granted — GPS, compass & weather active" else "Required for compass, speed & weather",
+                label    = stringResource(R.string.location_access),
+                sublabel = stringResource(if (hasLocation) R.string.location_granted else R.string.location_required),
                 icon     = if (hasLocation) Icons.Default.LocationOn else Icons.Default.LocationOff,
                 accent   = if (hasLocation) accent else Color(0xFF993333),
                 onClick  = {
@@ -252,15 +255,64 @@ fun SettingsScreen(
                     }
                 }
             )
+
+            SettingsDivider()
+
+            // Language — overrides the device's own locale for this app's UI
+            // only (see LocaleHelper/MainActivity.attachBaseContext). Locale
+            // is fixed at process-start time, so a change here only takes
+            // effect after a full restart — hence reusing the same
+            // showRestartDialog flow as the Maintenance section's button,
+            // triggered automatically on an actual change. The two option
+            // labels are fixed, native-language names ("English", "Tiếng
+            // Việt") rather than translated strings — a language picker
+            // conventionally names each language in itself, not in whatever
+            // language the UI currently happens to be in.
+            SettingsRow(
+                label    = stringResource(R.string.language),
+                sublabel = when (settings.appLanguage) {
+                    AppLanguage.ENGLISH    -> "English"
+                    AppLanguage.VIETNAMESE -> "Tiếng Việt"
+                },
+                icon = Icons.Default.Language
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AppLanguage.entries.forEach { lang ->
+                        FilterChip(
+                            selected = settings.appLanguage == lang,
+                            onClick  = {
+                                if (settings.appLanguage != lang) {
+                                    onUpdate { copy(appLanguage = lang) }
+                                    showRestartDialog = true
+                                }
+                            },
+                            label    = {
+                                Text(
+                                    text = when (lang) {
+                                        AppLanguage.ENGLISH    -> "English"
+                                        AppLanguage.VIETNAMESE -> "Tiếng Việt"
+                                    },
+                                    fontSize = 9.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = accent,
+                                selectedLabelColor     = Color.Black
+                            )
+                        )
+                    }
+                }
+            }
         }
 
         // ── Vehicle Name ─────────────────────────────────────────────────────
         if (SHOW_VEHICLE_NAME_ROW || SHOW_UNIT_SYSTEM_ROW) {
-        SettingsSection("Vehicle") {
+        SettingsSection(stringResource(R.string.vehicle)) {
             if (SHOW_VEHICLE_NAME_ROW) {
             var nameInput by remember(settings.vehicleName) { mutableStateOf(settings.vehicleName) }
             SettingsRow(
-                label    = "Vehicle Name",
+                label    = stringResource(R.string.vehicle_name),
                 sublabel = "",
                 icon     = Icons.Default.DirectionsCar
             ) {
@@ -268,7 +320,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value         = nameInput,
                         onValueChange = { nameInput = it },
-                        placeholder   = { Text("MY CAR", color = if (isDayMode) Color(0xFF999999) else Color(0xFF444444), fontSize = 12.sp) },
+                        placeholder   = { Text(stringResource(R.string.my_car), color = if (isDayMode) Color(0xFF999999) else Color(0xFF444444), fontSize = 12.sp) },
                         singleLine    = true,
                         textStyle     = LocalTextStyle.current.copy(fontSize = 12.sp, color = if (isDayMode) Color(0xFF111111) else Color.White),
                         colors        = outlinedFieldColors(accent),
@@ -276,7 +328,7 @@ fun SettingsScreen(
                     )
                     if (nameInput != settings.vehicleName) {
                         IconButton(onClick = { onUpdate { copy(vehicleName = nameInput) } }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Check, "Save", tint = accent, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Check, stringResource(R.string.save), tint = accent, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -286,12 +338,12 @@ fun SettingsScreen(
             }
 
             if (SHOW_UNIT_SYSTEM_ROW) {
-            SettingsRow(label = "Unit System", sublabel = if (settings.unitSystem == UnitSystem.METRIC) "Metric (°C, km)" else "Imperial (°F, mi)", icon = Icons.Default.Straighten) {
+            SettingsRow(label = stringResource(R.string.unit_system), sublabel = stringResource(if (settings.unitSystem == UnitSystem.METRIC) R.string.metric_summary else R.string.imperial_summary), icon = Icons.Default.Straighten) {
                 Row {
                     FilterChip(
                         selected = settings.unitSystem == UnitSystem.METRIC,
                         onClick  = { onUpdate { copy(unitSystem = UnitSystem.METRIC) } },
-                        label    = { Text("Metric", fontSize = 11.sp) },
+                        label    = { Text(stringResource(R.string.metric), fontSize = 11.sp) },
                         colors   = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = accent,
                             selectedLabelColor     = Color.Black
@@ -301,7 +353,7 @@ fun SettingsScreen(
                     FilterChip(
                         selected = settings.unitSystem == UnitSystem.IMPERIAL,
                         onClick  = { onUpdate { copy(unitSystem = UnitSystem.IMPERIAL) } },
-                        label    = { Text("Imperial", fontSize = 11.sp) },
+                        label    = { Text(stringResource(R.string.imperial), fontSize = 11.sp) },
                         colors   = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = accent,
                             selectedLabelColor     = Color.Black
@@ -313,94 +365,10 @@ fun SettingsScreen(
         }
         }
 
-        // ── Sidebar Shortcuts ─────────────────────────────────────────────────
-        SettingsSection("Sidebar") {
-            settings.shortcuts.forEachIndexed { index, shortcut ->
-                if (index > 0) SettingsDivider()
-                SettingsRow(
-                    label    = "Slot ${index + 1}",
-                    sublabel = when {
-                        shortcut.label.isNotEmpty()       -> shortcut.label
-                        shortcut.packageName.isNotEmpty() -> shortcut.packageName
-                        else                              -> "Empty"
-                    },
-                    icon     = Icons.Default.Apps
-                ) {
-                    if (settings.shortcuts.size > 1) {
-                        IconButton(
-                            onClick  = {
-                                onUpdate {
-                                    copy(shortcuts = shortcuts.toMutableList().also { it.removeAt(index) })
-                                }
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
-                        }
-                    }
-                }
-            }
-
-            if (settings.shortcuts.size < 4) {
-                SettingsDivider()
-
-                SettingsButton(
-                    label    = "Add Slot",
-                    sublabel = "Append an empty shortcut to the sidebar (max 4)",
-                    icon     = Icons.Default.Add,
-                    accent   = accent,
-                    onClick  = { onUpdate { copy(shortcuts = shortcuts + ShortcutConfig()) } }
-                )
-            }
-        }
-
-        // ── Status & Navigation ──────────────────────────────────────────────
-        SettingsSection("Status & Navigation") {
-            SettingsRow(
-                label    = "Hide Status Bar",
-                sublabel = "This app's own header row — vehicle name, wifi/data icons, edit button",
-                icon     = Icons.Default.ViewHeadline
-            ) {
-                Switch(
-                    checked         = settings.hideAppHeader,
-                    onCheckedChange = { onUpdate { copy(hideAppHeader = it) } },
-                    colors          = switchColors(accent)
-                )
-            }
-
-            SettingsDivider()
-
-            SettingsRow(
-                label    = "Hide System Status Bar",
-                sublabel = "Android's own status bar — when shown, content makes room for it",
-                icon     = Icons.Default.SignalCellularAlt
-            ) {
-                Switch(
-                    checked         = settings.hideSystemStatusBar,
-                    onCheckedChange = { onUpdate { copy(hideSystemStatusBar = it) } },
-                    colors          = switchColors(accent)
-                )
-            }
-
-            SettingsDivider()
-
-            SettingsRow(
-                label    = "Hide System Navigation Bar",
-                sublabel = "Android's own navigation bar",
-                icon     = Icons.Default.Web
-            ) {
-                Switch(
-                    checked         = settings.hideSystemNavBar,
-                    onCheckedChange = { onUpdate { copy(hideSystemNavBar = it) } },
-                    colors          = switchColors(accent)
-                )
-            }
-        }
-
         // ── Picture-in-Picture ───────────────────────────────────────────────
-        SettingsSection("Picture-in-Picture") {
+        SettingsSection(stringResource(R.string.picture_in_picture)) {
             fun appLabel(packageName: String): String {
-                if (packageName.isEmpty()) return "Not configured — tap to select an application"
+                if (packageName.isEmpty()) return context.getString(R.string.pip_not_configured)
                 return runCatching {
                     val info = context.packageManager.getApplicationInfo(packageName, 0)
                     context.packageManager.getApplicationLabel(info).toString()
@@ -412,7 +380,7 @@ fun SettingsScreen(
             val thirdPackage = settings.pipAppPackages.getOrElse(2) { "" }
 
             SettingsButton(
-                label = "First PiP",
+                label = stringResource(R.string.first_pip),
                 sublabel = appLabel(firstPackage),
                 icon = Icons.Default.PictureInPicture,
                 accent = accent,
@@ -429,7 +397,7 @@ fun SettingsScreen(
             SettingsDivider()
 
             SettingsButton(
-                label = "Second PiP",
+                label = stringResource(R.string.second_pip),
                 sublabel = appLabel(secondPackage),
                 icon = Icons.Default.PictureInPictureAlt,
                 accent = accent,
@@ -446,7 +414,7 @@ fun SettingsScreen(
             SettingsDivider()
 
             SettingsButton(
-                label = "Third PiP",
+                label = stringResource(R.string.third_pip),
                 sublabel = appLabel(thirdPackage),
                 icon = Icons.Default.PictureInPictureAlt,
                 accent = accent,
@@ -461,61 +429,16 @@ fun SettingsScreen(
             )
         }
 
-        // ── Autostart Apps ───────────────────────────────────────────────────
-        SettingsSection("Autostart Apps") {
-            fun appLabel(packageName: String): String = runCatching {
-                val info = context.packageManager.getApplicationInfo(packageName, 0)
-                context.packageManager.getApplicationLabel(info).toString()
-            }.getOrDefault(packageName)
-
-            if (settings.autostartPackages.isEmpty()) {
-                SettingsRow(
-                    label    = "No autostart apps configured",
-                    sublabel = "Silently launched on a hidden display when Open " +
-                        "Launcher starts — best for background work (music, sync), " +
-                        "not video/heavy UI (max 3)",
-                    icon     = Icons.Default.Apps
-                ) {}
-            } else {
-                settings.autostartPackages.forEachIndexed { index, pkg ->
-                    if (index > 0) SettingsDivider()
-                    SettingsRow(
-                        label    = appLabel(pkg),
-                        sublabel = "Runs silently in the background",
-                        icon     = Icons.Default.Apps
-                    ) {
-                        IconButton(
-                            onClick  = { onUpdate { copy(autostartPackages = autostartPackages - pkg) } },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
-                        }
-                    }
-                }
-            }
-
-            if (settings.autostartPackages.size < 3) {
-                SettingsDivider()
-                SettingsButton(
-                    label    = "Add Autostart App",
-                    sublabel = "Best for background work (music, sync) — not video/heavy UI (max 3)",
-                    icon     = Icons.Default.Add,
-                    accent   = accent,
-                    onClick  = onStartAutostartPicker
-                )
-            }
-        }
-
         // ── Appearance ───────────────────────────────────────────────────────
-        SettingsSection("Appearance") {
+        SettingsSection(stringResource(R.string.appearance)) {
             // Display Mode
             SettingsRow(
-                label    = "Display Mode",
+                label    = stringResource(R.string.display_mode),
                 sublabel = when (settings.dayNightMode) {
-                    DayNightMode.DARK   -> "Always dark"
-                    DayNightMode.LIGHT  -> "Always light"
-                    DayNightMode.AUTO   -> "Sunrise / sunset"
-                    DayNightMode.SYSTEM -> "Follows system theme"
+                    DayNightMode.DARK   -> stringResource(R.string.always_dark)
+                    DayNightMode.LIGHT  -> stringResource(R.string.always_light)
+                    DayNightMode.AUTO   -> stringResource(R.string.sunrise_sunset)
+                    DayNightMode.SYSTEM -> stringResource(R.string.follows_system_theme)
                 },
                 icon = when (settings.dayNightMode) {
                     DayNightMode.DARK   -> Icons.Default.NightlightRound
@@ -532,10 +455,10 @@ fun SettingsScreen(
                             label    = {
                                 Text(
                                     text      = when (mode) {
-                                        DayNightMode.DARK   -> "Dark"
-                                        DayNightMode.LIGHT  -> "Light"
-                                        DayNightMode.AUTO   -> "Sunset"
-                                        DayNightMode.SYSTEM -> "System"
+                                        DayNightMode.DARK   -> stringResource(R.string.dark)
+                                        DayNightMode.LIGHT  -> stringResource(R.string.light)
+                                        DayNightMode.AUTO   -> stringResource(R.string.sunset)
+                                        DayNightMode.SYSTEM -> stringResource(R.string.system)
                                     },
                                     fontSize  = 9.sp,
                                     letterSpacing = 0.5.sp
@@ -555,11 +478,11 @@ fun SettingsScreen(
             // Sidebar Position — moved here from "Vehicle" so it lives with
             // the rest of the visual/layout controls.
             SettingsRow(
-                label    = "Sidebar Position",
+                label    = stringResource(R.string.sidebar_position),
                 sublabel = when (settings.sidebarPosition) {
-                    SidebarPosition.LEFT   -> "Left side"
-                    SidebarPosition.RIGHT  -> "Right side"
-                    SidebarPosition.BOTTOM -> "Bottom"
+                    SidebarPosition.LEFT   -> stringResource(R.string.left_side)
+                    SidebarPosition.RIGHT  -> stringResource(R.string.right_side)
+                    SidebarPosition.BOTTOM -> stringResource(R.string.bottom)
                 },
                 icon     = Icons.Default.SwapHoriz
             ) {
@@ -571,9 +494,9 @@ fun SettingsScreen(
                             label    = {
                                 Text(
                                     when (pos) {
-                                        SidebarPosition.LEFT   -> "Left"
-                                        SidebarPosition.RIGHT  -> "Right"
-                                        SidebarPosition.BOTTOM -> "Bottom"
+                                        SidebarPosition.LEFT   -> stringResource(R.string.left)
+                                        SidebarPosition.RIGHT  -> stringResource(R.string.right)
+                                        SidebarPosition.BOTTOM -> stringResource(R.string.bottom)
                                     },
                                     fontSize = 9.sp,
                                     letterSpacing = 0.5.sp
@@ -591,8 +514,8 @@ fun SettingsScreen(
             if (settings.sidebarPosition == SidebarPosition.BOTTOM) {
                 SettingsDivider()
                 SettingsRow(
-                    label    = "Shortcuts Side",
-                    sublabel = if (settings.bottomBarShortcutsRight) "Right — nav buttons on left" else "Left — nav buttons on right",
+                    label    = stringResource(R.string.shortcuts_side),
+                    sublabel = stringResource(if (settings.bottomBarShortcutsRight) R.string.shortcuts_right else R.string.shortcuts_left),
                     icon     = Icons.Default.FormatAlignRight
                 ) {
                     Switch(
@@ -607,8 +530,8 @@ fun SettingsScreen(
 
             // Accent color
             SettingsRow(
-                label    = "Accent Color",
-                sublabel = "UI highlight color",
+                label    = stringResource(R.string.accent_color),
+                sublabel = stringResource(R.string.accent_color_description),
                 icon     = Icons.Default.Palette
             ) {
                 Box(
@@ -627,8 +550,8 @@ fun SettingsScreen(
             // background is picked above (see Sidebar.kt); this lets that be
             // overridden with an exact color instead.
             SettingsRow(
-                label    = "Sidebar Color",
-                sublabel = if (settings.useCustomSidebarColor) "Custom" else "Auto (from background)",
+                label    = stringResource(R.string.sidebar_color),
+                sublabel = stringResource(if (settings.useCustomSidebarColor) R.string.custom else R.string.auto_from_background),
                 icon     = Icons.Default.ViewSidebar
             ) {
                 Row(
@@ -648,7 +571,7 @@ fun SettingsScreen(
                             contentPadding = PaddingValues(horizontal = 6.dp),
                             modifier = Modifier.height(28.dp)
                         ) {
-                            Text("AUTO", color = accent, fontSize = 9.sp, letterSpacing = 1.sp)
+                            Text(stringResource(R.string.auto).uppercase(), color = accent, fontSize = 9.sp, letterSpacing = 1.sp)
                         }
                     }
                 }
@@ -658,8 +581,8 @@ fun SettingsScreen(
 
             // Font Color row
             SettingsRow(
-                label    = "Font Color",
-                sublabel = "Custom text color in dark mode",
+                label    = stringResource(R.string.font_color),
+                sublabel = stringResource(R.string.font_color_description),
                 icon     = Icons.Default.FormatSize
             ) {
                 Box(
@@ -675,8 +598,8 @@ fun SettingsScreen(
 
             // Wallpaper
             SettingsButton(
-                label    = "Set Wallpaper",
-                sublabel = if (settings.wallpaperUri.isNotEmpty()) "Custom wallpaper active" else "Choose image from gallery",
+                label    = stringResource(R.string.set_wallpaper),
+                sublabel = stringResource(if (settings.wallpaperUri.isNotEmpty()) R.string.custom_wallpaper_active else R.string.choose_gallery_image),
                 icon     = Icons.Default.Wallpaper,
                 accent   = accent,
                 onClick  = { wallpaperPicker.launch(arrayOf("image/*")) }
@@ -684,8 +607,8 @@ fun SettingsScreen(
             if (settings.wallpaperUri.isNotEmpty()) {
                 Column {
                     SettingsRow(
-                        label    = "Wallpaper Dim",
-                        sublabel = "${"%.0f".format(settings.wallpaperDim * 100)}%",
+                        label    = stringResource(R.string.wallpaper_dim),
+                        sublabel = stringResource(R.string.percent_value, settings.wallpaperDim * 100),
                         icon     = Icons.Default.BrightnessLow
                     ) {}
                     Slider(
@@ -701,15 +624,15 @@ fun SettingsScreen(
                         onClick  = { onUpdate { copy(wallpaperUri = "") } },
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("REMOVE WALLPAPER", color = Color(0xFF993333), fontSize = 9.sp, letterSpacing = 1.sp)
+                        Text(stringResource(R.string.remove_wallpaper).uppercase(), color = Color(0xFF993333), fontSize = 9.sp, letterSpacing = 1.sp)
                     }
                 }
             }
         }
 
         // ── Typography ───────────────────────────────────────────────────────
-        SettingsSection("Typography") {
-            SettingsRow(label = "Font", sublabel = fontDisplayName(settings.appFont), icon = Icons.Default.FontDownload) {
+        SettingsSection(stringResource(R.string.typography)) {
+            SettingsRow(label = stringResource(R.string.font), sublabel = fontDisplayName(settings.appFont), icon = Icons.Default.FontDownload) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     com.openlauncher.app.data.AppFont.entries.forEach { font ->
                         FilterChip(
@@ -727,7 +650,7 @@ fun SettingsScreen(
 
             SettingsDivider()
 
-            SettingsRow(label = "Bold Font", sublabel = "Heavier weight across all text", icon = Icons.Default.FormatBold) {
+            SettingsRow(label = stringResource(R.string.bold_font), sublabel = stringResource(R.string.bold_font_description), icon = Icons.Default.FormatBold) {
                 Switch(
                     checked         = settings.fontBold,
                     onCheckedChange = { onUpdate { copy(fontBold = it) } },
@@ -739,8 +662,8 @@ fun SettingsScreen(
 
             Column {
                 SettingsRow(
-                    label    = "Text Scale",
-                    sublabel = "${"%.0f".format(settings.textScale * 100)}%",
+                    label    = stringResource(R.string.text_scale),
+                    sublabel = stringResource(R.string.percent_value, settings.textScale * 100),
                     icon     = Icons.Default.TextFields
                 ) {}
                 Slider(
@@ -757,8 +680,8 @@ fun SettingsScreen(
 
             Column {
                 SettingsRow(
-                    label    = "UI Scale",
-                    sublabel = "${"%.0f".format(settings.uiScale * 100)}%  — scales all elements",
+                    label    = stringResource(R.string.ui_scale),
+                    sublabel = stringResource(R.string.scale_all_elements, settings.uiScale * 100),
                     icon     = Icons.Default.ZoomIn
                 ) {}
                 Slider(
@@ -773,11 +696,11 @@ fun SettingsScreen(
         }
 
         // ── App Library ──────────────────────────────────────────────────────
-        SettingsSection("App Library") {
+        SettingsSection(stringResource(R.string.app_library)) {
             Column {
                 SettingsRow(
-                    label    = "App Icon Size",
-                    sublabel = "${"%.0f".format(settings.appIconScale * 100)}%",
+                    label    = stringResource(R.string.app_icon_size),
+                    sublabel = stringResource(R.string.percent_value, settings.appIconScale * 100),
                     icon     = Icons.Default.Apps
                 ) {}
                 Slider(
@@ -794,8 +717,8 @@ fun SettingsScreen(
 
             Column {
                 SettingsRow(
-                    label    = "Grid Columns",
-                    sublabel = "${settings.appGridColumns} across",
+                    label    = stringResource(R.string.grid_columns),
+                    sublabel = pluralStringResource(R.plurals.grid_columns_across, settings.appGridColumns, settings.appGridColumns),
                     icon     = Icons.Default.ViewColumn
                 ) {}
                 Slider(
@@ -812,8 +735,8 @@ fun SettingsScreen(
 
             Column {
                 SettingsRow(
-                    label    = "Grid Rows",
-                    sublabel = "${settings.appGridRows} visible without scrolling",
+                    label    = stringResource(R.string.grid_rows),
+                    sublabel = pluralStringResource(R.plurals.grid_rows_visible, settings.appGridRows, settings.appGridRows),
                     icon     = Icons.Default.ViewAgenda
                 ) {}
                 Slider(
@@ -829,7 +752,7 @@ fun SettingsScreen(
 
         // ── GPS & Calibration ───────────────────────────────────────────────
         if (SHOW_GPS_CALIBRATION_SECTION) {
-        SettingsSection("GPS & Calibration") {
+        SettingsSection(stringResource(R.string.gps_calibration)) {
             var calibrationStatus by remember { mutableStateOf<String?>(null) }
             val coroutineScope = rememberCoroutineScope()
             var isCalibratingCompass by remember { mutableStateOf(false) }
@@ -837,12 +760,12 @@ fun SettingsScreen(
 
             // 1. Reset A-GPS Button
             SettingsButton(
-                label    = "Reset A-GPS Assistance Data",
-                sublabel = calibrationStatus ?: "Forces cold start to download fresh satellite orbits entirely offline",
+                label    = stringResource(R.string.reset_agps),
+                sublabel = calibrationStatus ?: stringResource(R.string.reset_agps_description),
                 icon     = Icons.Default.MyLocation,
                 accent   = accent,
                 onClick  = {
-                    calibrationStatus = "Clearing A-GPS cache..."
+                    calibrationStatus = context.getString(R.string.clearing_agps)
                     val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
                     var success = false
                     try {
@@ -856,9 +779,9 @@ fun SettingsScreen(
                     }
 
                     calibrationStatus = if (success) {
-                        "Cold start forced — go outdoors for a fresh satellite lock (2–3 min)"
+                        context.getString(R.string.agps_cleared)
                     } else {
-                        "Not supported by this device's GPS driver — no data was cleared"
+                        context.getString(R.string.agps_not_supported)
                     }
                 }
             )
@@ -870,11 +793,11 @@ fun SettingsScreen(
             // diverse readings. The timer guides the sweep; it does not (and
             // cannot) apply offsets itself, so the message must not claim it did.
             SettingsButton(
-                label    = "Magnetometer Sweep (Parking Lot)",
+                label    = stringResource(R.string.magnetometer_sweep),
                 sublabel = if (isCalibratingCompass) {
-                    "Sweep active: Drive slowly in two 360° circles... (${compassCountdown}s remaining)"
+                    stringResource(R.string.sweep_active, compassCountdown)
                 } else {
-                    "Guided sweep — Android self-calibrates the compass while you circle"
+                    stringResource(R.string.sweep_description)
                 },
                 icon     = Icons.Default.Navigation,
                 accent   = if (isCalibratingCompass) Color.Green else accent,
@@ -888,7 +811,7 @@ fun SettingsScreen(
                                 compassCountdown--
                             }
                             isCalibratingCompass = false
-                            calibrationStatus = "Sweep complete — check the compass widget; if heading is still off, use the manual offset below"
+                            calibrationStatus = context.getString(R.string.sweep_complete)
                         }
                     }
                 }
@@ -899,8 +822,8 @@ fun SettingsScreen(
             // 4. Manual Compass Heading Offset Slider
             Column(modifier = Modifier.padding(bottom = 8.dp)) {
                 SettingsRow(
-                    label    = "Compass Heading Offset",
-                    sublabel = "Manual Alignment: ${if (settings.compassOffset >= 0) "+" else ""}${settings.compassOffset.toInt()}°  — aligns compass with vehicle front",
+                    label    = stringResource(R.string.compass_heading_offset),
+                    sublabel = stringResource(R.string.manual_alignment, if (settings.compassOffset >= 0) "+" else "", settings.compassOffset.toInt()),
                     icon     = Icons.Default.Explore
                 ) {}
                 Slider(
@@ -917,10 +840,10 @@ fun SettingsScreen(
 
         // ── Updates ──────────────────────────────────────────────────────────
         if (SHOW_UPDATES_SECTION) {
-        SettingsSection("Updates") {
+        SettingsSection(stringResource(R.string.updates)) {
             SettingsButton(
-                label    = "Check for Updates",
-                sublabel = "View releases on GitHub",
+                label    = stringResource(R.string.check_for_updates),
+                sublabel = stringResource(R.string.view_github_releases),
                 icon     = Icons.Default.SystemUpdate,
                 accent   = accent,
                 onClick  = {
@@ -931,8 +854,94 @@ fun SettingsScreen(
         }
         }
 
+        // ── Autostart Apps ───────────────────────────────────────────────────
+        SettingsSection(stringResource(R.string.autostart_apps)) {
+            fun appLabel(packageName: String): String = runCatching {
+                val info = context.packageManager.getApplicationInfo(packageName, 0)
+                context.packageManager.getApplicationLabel(info).toString()
+            }.getOrDefault(packageName)
+
+            if (settings.autostartPackages.isEmpty()) {
+                SettingsRow(
+                    label    = stringResource(R.string.no_autostart_apps),
+                    sublabel = stringResource(R.string.autostart_description),
+                    icon     = Icons.Default.Apps
+                ) {}
+            } else {
+                settings.autostartPackages.forEachIndexed { index, pkg ->
+                    if (index > 0) SettingsDivider()
+                    SettingsRow(
+                        label    = appLabel(pkg),
+                        sublabel = stringResource(R.string.runs_in_background),
+                        icon     = Icons.Default.Apps
+                    ) {
+                        IconButton(
+                            onClick  = { onUpdate { copy(autostartPackages = autostartPackages - pkg) } },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+            }
+
+            if (settings.autostartPackages.size < 3) {
+                SettingsDivider()
+                SettingsButton(
+                    label    = stringResource(R.string.add_autostart_app),
+                    sublabel = stringResource(R.string.add_autostart_description),
+                    icon     = Icons.Default.Add,
+                    accent   = accent,
+                    onClick  = onStartAutostartPicker
+                )
+            }
+        }
+
+        // ── Status & Navigation ──────────────────────────────────────────────
+        SettingsSection(stringResource(R.string.status_navigation)) {
+            SettingsRow(
+                label    = stringResource(R.string.hide_status_bar),
+                sublabel = stringResource(R.string.hide_status_bar_description),
+                icon     = Icons.Default.ViewHeadline
+            ) {
+                Switch(
+                    checked         = settings.hideAppHeader,
+                    onCheckedChange = { onUpdate { copy(hideAppHeader = it) } },
+                    colors          = switchColors(accent)
+                )
+            }
+
+            SettingsDivider()
+
+            SettingsRow(
+                label    = stringResource(R.string.hide_system_status_bar),
+                sublabel = stringResource(R.string.hide_system_status_bar_description),
+                icon     = Icons.Default.SignalCellularAlt
+            ) {
+                Switch(
+                    checked         = settings.hideSystemStatusBar,
+                    onCheckedChange = { onUpdate { copy(hideSystemStatusBar = it) } },
+                    colors          = switchColors(accent)
+                )
+            }
+
+            SettingsDivider()
+
+            SettingsRow(
+                label    = stringResource(R.string.hide_system_navigation_bar),
+                sublabel = stringResource(R.string.hide_system_navigation_bar_description),
+                icon     = Icons.Default.Web
+            ) {
+                Switch(
+                    checked         = settings.hideSystemNavBar,
+                    onCheckedChange = { onUpdate { copy(hideSystemNavBar = it) } },
+                    colors          = switchColors(accent)
+                )
+            }
+        }
+
         // ── Maintenance ──────────────────────────────────────────────────────
-        SettingsSection("Maintenance") {
+        SettingsSection(stringResource(R.string.maintenance)) {
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick  = { showRestartDialog = true },
@@ -942,7 +951,7 @@ fun SettingsScreen(
             ) {
                 Icon(Icons.Default.Refresh, null, tint = accent, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Restart Launcher", color = accent, fontSize = 13.sp, letterSpacing = 1.sp)
+                Text(stringResource(R.string.restart_launcher), color = accent, fontSize = 13.sp, letterSpacing = 1.sp)
             }
             Spacer(Modifier.height(8.dp))
             Button(
@@ -953,7 +962,7 @@ fun SettingsScreen(
             ) {
                 Icon(Icons.Default.RestartAlt, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Reset to Defaults", color = MaterialTheme.colorScheme.error, fontSize = 13.sp, letterSpacing = 1.sp)
+                Text(stringResource(R.string.reset_defaults), color = MaterialTheme.colorScheme.error, fontSize = 13.sp, letterSpacing = 1.sp)
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -961,7 +970,7 @@ fun SettingsScreen(
         Spacer(Modifier.height(32.dp))
 
         Text(
-            text          = "v${BuildConfig.VERSION_NAME}  ·  built ${BuildConfig.BUILD_DATE}",
+            text          = stringResource(R.string.build_info, BuildConfig.VERSION_NAME, BuildConfig.BUILD_DATE),
             color         = if (isDayMode) Color(0xFFAAAAAA) else Color(0xFF2A2A2A),
             fontSize      = 10.sp,
             letterSpacing = 1.sp,
@@ -975,9 +984,9 @@ fun SettingsScreen(
     // ── Dialogs ──────────────────────────────────────────────────────────────
     if (showResetDialog) {
         ConfirmDialog(
-            title        = "Reset Settings",
-            message      = "Are you sure you want to reset all settings to default? This cannot be undone.",
-            confirmLabel = "Reset",
+            title        = stringResource(R.string.reset_settings),
+            message      = stringResource(R.string.reset_settings_message),
+            confirmLabel = stringResource(R.string.reset),
             onConfirm    = { onReset(); showResetDialog = false },
             onDismiss    = { showResetDialog = false }
         )
@@ -985,9 +994,9 @@ fun SettingsScreen(
 
     if (showRestartDialog) {
         ConfirmDialog(
-            title        = "Restart Launcher",
-            message      = "Restart now to refresh everything back to a cold-start state? Any embedded PIP apps will relaunch.",
-            confirmLabel = "Restart",
+            title        = stringResource(R.string.restart_launcher),
+            message      = stringResource(R.string.restart_message),
+            confirmLabel = stringResource(R.string.restart),
             onConfirm    = {
                 showRestartDialog = false
                 onRestartLauncher()
@@ -998,7 +1007,7 @@ fun SettingsScreen(
 
     if (showAccentPicker) {
         ColorPickerDialog(
-            title           = "Accent Color",
+            title           = stringResource(R.string.accent_color),
             initialColor    = Color(settings.accentColor),
             onColorSelected = { c -> onUpdate { copy(accentColor = c.toArgb()) } },
             onDismiss       = { showAccentPicker = false }
@@ -1007,7 +1016,7 @@ fun SettingsScreen(
 
     if (showSidebarColorPicker) {
         ColorPickerDialog(
-            title           = "Sidebar Color",
+            title           = stringResource(R.string.sidebar_color),
             initialColor    = Color(settings.sidebarColor),
             onColorSelected = { c ->
                 onUpdate {
@@ -1023,7 +1032,7 @@ fun SettingsScreen(
 
     if (showFontColorPicker) {
         ColorPickerDialog(
-            title           = "Font Color",
+            title           = stringResource(R.string.font_color),
             initialColor    = Color(settings.fontColor),
             onColorSelected = { c -> onUpdate { copy(fontColor = c.toArgb()) } },
             onDismiss       = { showFontColorPicker = false }
@@ -1161,8 +1170,9 @@ private fun sliderColors(accent: Color): androidx.compose.material3.SliderColors
 }
 
 
+@Composable
 private fun fontDisplayName(font: AppFont): String = when (font) {
-    AppFont.SYSTEM          -> "System"
+    AppFont.SYSTEM          -> stringResource(R.string.font_system)
     AppFont.JETBRAINS_MONO  -> "JetBrains Mono"
     AppFont.SOURCE_CODE_PRO -> "Source Code Pro"
 }

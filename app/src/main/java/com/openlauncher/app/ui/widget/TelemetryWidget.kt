@@ -12,10 +12,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openlauncher.app.util.LocationData
+import com.openlauncher.app.R
 import kotlin.math.abs
 
 @Composable
@@ -78,7 +80,7 @@ fun TelemetryWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text     = "N",
+                        text     = stringResource(R.string.direction_north_short),
                         color    = cardinalMain,
                         fontSize = 11.sp,
                         modifier = Modifier
@@ -86,7 +88,7 @@ fun TelemetryWidget(
                             .padding(top = (capturedMaxHeight / 2 - radius - 6.dp).coerceAtLeast(0.dp))
                     )
                     Text(
-                        text     = "S",
+                        text     = stringResource(R.string.direction_south_short),
                         color    = cardinalMain,
                         fontSize = 11.sp,
                         modifier = Modifier
@@ -94,7 +96,7 @@ fun TelemetryWidget(
                             .padding(bottom = (capturedMaxHeight / 2 - radius - 6.dp).coerceAtLeast(0.dp))
                     )
                     Text(
-                        text     = "E",
+                        text     = stringResource(R.string.direction_east_short),
                         color    = cardinalSub,
                         fontSize = 9.sp,
                         modifier = Modifier
@@ -102,7 +104,7 @@ fun TelemetryWidget(
                             .padding(end = (capturedMaxWidth / 2 - radius - 6.dp).coerceAtLeast(0.dp))
                     )
                     Text(
-                        text     = "W",
+                        text     = stringResource(R.string.direction_west_short),
                         color    = cardinalSub,
                         fontSize = 9.sp,
                         modifier = Modifier
@@ -152,14 +154,18 @@ fun TelemetryWidget(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text          = "LATITUDE",
+                    text          = stringResource(R.string.widget_latitude),
                     style         = MaterialTheme.typography.labelSmall,
                     color         = subColor,
                     letterSpacing = 1.sp,
                     fontSize      = 7.sp
                 )
                 Text(
-                    text     = if (location != null) formatLat(location.latitude) else "—",
+                    text     = if (location != null) stringResource(
+                        R.string.coordinate_degrees,
+                        abs(location.latitude),
+                        stringResource(if (location.latitude >= 0) R.string.direction_north_short else R.string.direction_south_short)
+                    ) else "—",
                     color    = contentColor,
                     fontSize = 11.sp
                 )
@@ -169,7 +175,7 @@ fun TelemetryWidget(
                 horizontalAlignment = Alignment.End
             ) {
                 Text(
-                    text          = "LONGITUDE",
+                    text          = stringResource(R.string.widget_longitude),
                     style         = MaterialTheme.typography.labelSmall,
                     color         = subColor,
                     letterSpacing = 1.sp,
@@ -177,7 +183,11 @@ fun TelemetryWidget(
                     textAlign     = TextAlign.End
                 )
                 Text(
-                    text      = if (location != null) formatLon(location.longitude) else "—",
+                    text      = if (location != null) stringResource(
+                        R.string.coordinate_degrees,
+                        abs(location.longitude),
+                        stringResource(if (location.longitude >= 0) R.string.direction_east_short else R.string.direction_west_short)
+                    ) else "—",
                     color     = contentColor,
                     fontSize  = 11.sp,
                     textAlign = TextAlign.End
@@ -186,6 +196,3 @@ fun TelemetryWidget(
         }
     }
 }
-
-private fun formatLat(lat: Double) = "%.4f° %s".format(abs(lat), if (lat >= 0) "N" else "S")
-private fun formatLon(lon: Double) = "%.4f° %s".format(abs(lon), if (lon >= 0) "E" else "W")

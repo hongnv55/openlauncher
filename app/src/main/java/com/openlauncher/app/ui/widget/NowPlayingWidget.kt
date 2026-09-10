@@ -35,12 +35,14 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openlauncher.app.model.NowPlayingState
+import com.openlauncher.app.R
 import com.openlauncher.app.service.MediaListenerService
 import kotlin.math.abs
 import kotlinx.coroutines.delay
@@ -151,7 +153,7 @@ fun NowPlayingWidget(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Source Selector",
+                    contentDescription = stringResource(R.string.source_selector),
                     tint = selectorIconColor,
                     modifier = Modifier.size(16.dp)
                 )
@@ -164,7 +166,7 @@ fun NowPlayingWidget(
                 modifier = Modifier.background(dropdownBg)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Any Player", color = dropdownText, fontSize = 11.sp) },
+                    text = { Text(stringResource(R.string.any_player), color = dropdownText, fontSize = 11.sp) },
                     onClick = {
                         selectedSource = "Any Player"
                         menuExpanded = false
@@ -172,7 +174,7 @@ fun NowPlayingWidget(
                     leadingIcon = { Icon(Icons.Default.MusicNote, null, tint = accent, modifier = Modifier.size(14.dp)) }
                 )
                 DropdownMenuItem(
-                    text = { Text("FM/AM Radio", color = dropdownText, fontSize = 11.sp) },
+                    text = { Text(stringResource(R.string.fm_am_radio), color = dropdownText, fontSize = 11.sp) },
                     onClick = {
                         selectedSource = "FM/AM Radio"
                         menuExpanded = false
@@ -221,14 +223,14 @@ private fun RadioDeck(
             Icon(Icons.Default.Radio, null, tint = dimColor, modifier = Modifier.size(22.dp))
             Spacer(Modifier.height(6.dp))
             Text(
-                "NO RADIO SOURCE",
+                stringResource(R.string.no_radio_source).uppercase(),
                 color = contentColor.copy(alpha = 0.85f),
                 fontSize = 9.sp, fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                "Start your head unit's radio app — or assign it below so Open Launcher can mirror and control it",
+                stringResource(R.string.no_radio_source_description),
                 color = dimColor, fontSize = 7.sp, fontFamily = FontFamily.Monospace,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 lineHeight = 10.sp,
@@ -245,7 +247,7 @@ private fun RadioDeck(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "ASSIGN RADIO APP",
+                    stringResource(R.string.assign_radio_app).uppercase(),
                     color = accent, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold, letterSpacing = 1.sp
                 )
@@ -340,7 +342,7 @@ private fun RadioDeck(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Default.PowerSettingsNew, "PWR",
+                    Icons.Default.PowerSettingsNew, stringResource(R.string.power),
                     tint = if (powerOn) chipActiveText else dimColor,
                     modifier = Modifier.size(16.dp)
                 )
@@ -365,7 +367,7 @@ private fun RadioDeck(
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = (if (!powerOn) "RADIO OFF" else hardwareRadio.stationName ?: "LIVE").uppercase(),
+                    text = (if (!powerOn) stringResource(R.string.radio_off) else hardwareRadio.stationName ?: stringResource(R.string.live)).uppercase(),
                     color = if (powerOn) accent else dimColor.copy(alpha = 0.5f),
                     fontSize = 8.sp, fontFamily = FontFamily.Monospace,
                     letterSpacing = 1.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
@@ -379,19 +381,19 @@ private fun RadioDeck(
         // ── Row 3: seek + open ────────────────────────────────────────────────
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             RadioFlatButton(
-                label = "◄ SEEK", enabled = powerOn, active = false,
+                label = stringResource(R.string.seek_previous), enabled = powerOn, active = false,
                 accent = accent, borderColor = borderColor, dimColor = dimColor,
                 modifier = Modifier.weight(1f),
                 onClick = onRadioSeekDown
             )
             RadioFlatButton(
-                label = "OPEN", enabled = true, active = false,
+                label = stringResource(R.string.open), enabled = true, active = false,
                 accent = accent, borderColor = borderColor, dimColor = dimColor,
                 modifier = Modifier.weight(1f),
                 onClick = onLaunchHardwareRadio
             )
             RadioFlatButton(
-                label = "SEEK ►", enabled = powerOn, active = false,
+                label = stringResource(R.string.seek_next), enabled = powerOn, active = false,
                 accent = accent, borderColor = borderColor, dimColor = dimColor,
                 modifier = Modifier.weight(1f),
                 onClick = onRadioSeekUp
@@ -561,7 +563,7 @@ private fun StandardMinimalPlayer(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(Icons.Default.PhoneAndroid, null, tint = accent.copy(alpha = 0.7f), modifier = Modifier.size(28.dp))
-                                    Text("CARPLAY", color = accent.copy(alpha = 0.6f), fontSize = 8.sp, letterSpacing = 2.sp)
+                                    Text(stringResource(R.string.carplay_label).uppercase(), color = accent.copy(alpha = 0.6f), fontSize = 8.sp, letterSpacing = 2.sp)
                                 }
                             }
                         }
@@ -584,7 +586,7 @@ private fun StandardMinimalPlayer(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(Icons.Default.DirectionsCar, null, tint = accent.copy(alpha = 0.7f), modifier = Modifier.size(28.dp))
-                                    Text("ANDROID AUTO", color = accent.copy(alpha = 0.6f), fontSize = 8.sp, letterSpacing = 2.sp)
+                                    Text(stringResource(R.string.android_auto_label).uppercase(), color = accent.copy(alpha = 0.6f), fontSize = 8.sp, letterSpacing = 2.sp)
                                 }
                             }
                         }
@@ -595,7 +597,7 @@ private fun StandardMinimalPlayer(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(Icons.Default.MusicNote, null, tint = idleIconColor, modifier = Modifier.size(24.dp))
-                        Text("NO MEDIA PLAYING", color = idleTextColor, fontSize = 7.sp, letterSpacing = 1.sp)
+                        Text(stringResource(R.string.no_media_playing).uppercase(), color = idleTextColor, fontSize = 7.sp, letterSpacing = 1.sp)
                     }
                 }
             }
@@ -670,7 +672,7 @@ private fun StandardMinimalPlayer(
                         fontSize = 14.sp
                     )
                     Text(
-                        text = nonNullState.artist.ifEmpty { "Unknown" },
+                        text = nonNullState.artist.ifEmpty { stringResource(R.string.unknown_artist) },
                         style = MaterialTheme.typography.bodySmall,
                         color = currentSubTextColor,
                         maxLines = 1,
@@ -703,7 +705,7 @@ private fun StandardMinimalPlayer(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         IconButton(onClick = { if (!isEditing) onPrev() }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.SkipPrevious, "Prev", tint = currentIconColor, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.SkipPrevious, stringResource(R.string.previous_track), tint = currentIconColor, modifier = Modifier.size(20.dp))
                         }
                         Box(
                             contentAlignment = Alignment.Center,
@@ -715,14 +717,14 @@ private fun StandardMinimalPlayer(
                             IconButton(onClick = { if (!isEditing) onPlayPause() }, modifier = Modifier.size(42.dp)) {
                                 Icon(
                                     imageVector = if (nonNullState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (nonNullState.isPlaying) "Pause" else "Play",
+                                    contentDescription = stringResource(if (nonNullState.isPlaying) R.string.pause else R.string.play),
                                     tint = currentPlayIconColor,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
                         IconButton(onClick = { if (!isEditing) onNext() }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.SkipNext, "Next", tint = currentIconColor, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.SkipNext, stringResource(R.string.next_track), tint = currentIconColor, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -735,4 +737,3 @@ private fun formatMs(ms: Long): String {
     val s = ms / 1000
     return "%d:%02d".format(s / 60, s % 60)
 }
-

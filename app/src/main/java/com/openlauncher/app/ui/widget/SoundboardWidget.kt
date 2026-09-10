@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.openlauncher.app.data.SoundPadConfig
+import com.openlauncher.app.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -183,7 +185,7 @@ private fun PadAssignDialog(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                "ASSIGN PAD SOUND",
+                stringResource(R.string.assign_pad_sound).uppercase(),
                 color = contentColor,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
@@ -193,7 +195,7 @@ private fun PadAssignDialog(
 
             // Label field
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("PAD LABEL", color = dimColor, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 1.5.sp)
+                Text(stringResource(R.string.pad_label).uppercase(), color = dimColor, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 1.5.sp)
                 BasicTextField(
                     value = labelText,
                     onValueChange = { if (it.length <= 12) labelText = it },
@@ -213,16 +215,16 @@ private fun PadAssignDialog(
 
             // Preloaded Audio Selector (replaces old raw waveform synth generation)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("PRELOADED AUDIO", color = dimColor, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 1.5.sp)
+                Text(stringResource(R.string.preloaded_audio).uppercase(), color = dimColor, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 1.5.sp)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     val preloadedSounds = listOf(
-                        "mario_jump" to "mario_jump",
-                        "mario_coin" to "mario_coin",
-                        "boom" to "boom",
-                        "loud_fart" to "loud_fart"
+                        "mario_jump" to R.string.sound_mario_jump,
+                        "mario_coin" to R.string.sound_mario_coin,
+                        "boom" to R.string.sound_boom,
+                        "loud_fart" to R.string.sound_loud_fart
                     )
                     preloadedSounds.forEach { (type, chipLabel) ->
                         val active = synthType == type && audioUri.isEmpty()
@@ -241,7 +243,7 @@ private fun PadAssignDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                chipLabel,
+                                stringResource(chipLabel),
                                 color = if (active) accent else dimColor,
                                 fontSize = 8.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -254,7 +256,7 @@ private fun PadAssignDialog(
 
             // Custom audio file picker
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("CUSTOM AUDIO FILE", color = dimColor, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 1.5.sp)
+                Text(stringResource(R.string.custom_audio_file).uppercase(), color = dimColor, fontSize = 7.sp, fontFamily = FontFamily.Monospace, letterSpacing = 1.5.sp)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -270,7 +272,7 @@ private fun PadAssignDialog(
                         Icon(Icons.Default.AudioFile, null, tint = accent, modifier = Modifier.size(12.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            if (audioUri.isNotEmpty()) "CUSTOM FILE ASSIGNED" else "PICK AUDIO FILE",
+                            stringResource(if (audioUri.isNotEmpty()) R.string.custom_file_assigned else R.string.pick_audio_file).uppercase(),
                             color = accent,
                             fontSize = 7.sp,
                             fontFamily = FontFamily.Monospace,
@@ -313,7 +315,7 @@ private fun PadAssignDialog(
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF884444)),
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("CLEAR SOUND", color = Color(0xFF884444), fontSize = 7.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.clear_sound).uppercase(), color = Color(0xFF884444), fontSize = 7.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -330,7 +332,7 @@ private fun PadAssignDialog(
                     border = androidx.compose.foundation.BorderStroke(1.dp, fieldBorder),
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("CANCEL", color = dimColor, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancel).uppercase(), color = dimColor, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
                 Button(
                     onClick = {
@@ -345,7 +347,7 @@ private fun PadAssignDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = accent),
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("SAVE SOUND", color = if (isDayMode) Color.White else Color.Black, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.save_sound).uppercase(), color = if (isDayMode) Color.White else Color.Black, fontSize = 7.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
             }
         }

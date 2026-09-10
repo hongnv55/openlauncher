@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,6 +35,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.openlauncher.app.BuildConfig
+import com.openlauncher.app.R
 import com.openlauncher.app.data.AppSettings
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -131,7 +133,7 @@ fun OnboardingScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "OPEN LAUNCHER",
+                        text = stringResource(R.string.app_name).uppercase(),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -139,7 +141,7 @@ fun OnboardingScreen(
                         fontSize = 15.sp
                     )
                     Text(
-                        text = "Designed for the dashboard",
+                        text = stringResource(R.string.onboarding_tagline),
                         color = Color(0xFF666666),
                         fontSize = 11.sp,
                         letterSpacing = 0.5.sp
@@ -148,14 +150,14 @@ fun OnboardingScreen(
 
                 // Step indicator list
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    StepItem(0, "Introduction", currentStep)
-                    StepItem(1, "Location Services", currentStep)
-                    StepItem(2, "Media Integration", currentStep)
-                    StepItem(3, "Ready to Go", currentStep)
+                    StepItem(0, stringResource(R.string.onboarding_step_introduction), currentStep)
+                    StepItem(1, stringResource(R.string.onboarding_step_location), currentStep)
+                    StepItem(2, stringResource(R.string.onboarding_step_media), currentStep)
+                    StepItem(3, stringResource(R.string.onboarding_step_ready), currentStep)
                 }
 
                 Text(
-                    text = "v${BuildConfig.VERSION_NAME}",
+                    text = stringResource(R.string.version_short, BuildConfig.VERSION_NAME),
                     color = Color(0xFF333333),
                     fontSize = 9.sp,
                     letterSpacing = 1.sp
@@ -232,7 +234,7 @@ fun OnboardingScreen(
                         ) {
                             Icon(Icons.Default.ArrowBack, null, tint = Color(0xFF888888), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("BACK", color = Color(0xFF888888), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Text(stringResource(R.string.back).uppercase(), color = Color(0xFF888888), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                         }
                     } else {
                         Spacer(Modifier.width(1.dp))
@@ -248,11 +250,11 @@ fun OnboardingScreen(
                     }
 
                     val nextButtonLabel = when (currentStep) {
-                        0 -> "GET STARTED"
-                        1 -> if (locationGranted) "CONTINUE" else "SKIP FOR NOW"
-                        2 -> if (mediaGranted) "CONTINUE" else "SKIP FOR NOW"
-                        3 -> "FINISH SETUP"
-                        else -> "CONTINUE"
+                        0 -> stringResource(R.string.get_started)
+                        1 -> stringResource(if (locationGranted) R.string.continue_label else R.string.skip_for_now)
+                        2 -> stringResource(if (mediaGranted) R.string.continue_label else R.string.skip_for_now)
+                        3 -> stringResource(R.string.finish_setup)
+                        else -> stringResource(R.string.continue_label)
                     }
 
                     val nextButtonIcon = if (currentStep == 3) Icons.Default.Check else Icons.Default.ArrowForward
@@ -337,7 +339,7 @@ private fun StepItem(stepIndex: Int, title: String, currentStep: Int) {
 private fun IntroStep(accent: Color) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "WELCOME TO OPEN LAUNCHER",
+            text = stringResource(R.string.welcome_title).uppercase(),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = accent,
@@ -345,7 +347,7 @@ private fun IntroStep(accent: Color) {
             fontSize = 20.sp
         )
         Text(
-            text = "A clean, modern landscape dashboard designed to be the ultimate companion for your car's screen.",
+            text = stringResource(R.string.welcome_description),
             color = Color(0xFFAAAAAA),
             fontSize = 13.sp,
             lineHeight = 20.sp
@@ -354,9 +356,9 @@ private fun IntroStep(accent: Color) {
         Spacer(Modifier.height(8.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            BulletItem(Icons.Default.CloudOff, "100% Offline-Based", "No reliance on a mobile signal or network connection to function. Speedometer, compass telemetry, and altimeter operate entirely offline.")
-            BulletItem(Icons.Default.Palette, "Highly Customizable Dashboard", "Tailor color accents, background gradients, typography fonts, system units, and drag-and-drop to rearrange your tiles.")
-            BulletItem(Icons.Default.VolumeUp, "Soundboard & Media Shortcuts", "Trigger custom soundboard sound effects, manage CarPlay & Android Auto shortcuts, and control active media players.")
+            BulletItem(Icons.Default.CloudOff, stringResource(R.string.offline_title), stringResource(R.string.offline_description))
+            BulletItem(Icons.Default.Palette, stringResource(R.string.customizable_title), stringResource(R.string.customizable_description))
+            BulletItem(Icons.Default.VolumeUp, stringResource(R.string.media_shortcuts_title), stringResource(R.string.media_shortcuts_description))
         }
     }
 }
@@ -365,7 +367,7 @@ private fun IntroStep(accent: Color) {
 private fun LocationStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "TELEMETRY & WEATHER",
+            text = stringResource(R.string.telemetry_weather_title).uppercase(),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = accent,
@@ -373,7 +375,7 @@ private fun LocationStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit)
             fontSize = 20.sp
         )
         Text(
-            text = "To compute your real-time speed, compass bearing, altitude telemetry, and update local weather conditions, Open Launcher requires high-precision GPS services.",
+            text = stringResource(R.string.telemetry_weather_description),
             color = Color(0xFFAAAAAA),
             fontSize = 13.sp,
             lineHeight = 20.sp
@@ -400,13 +402,13 @@ private fun LocationStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit)
                 )
                 Column {
                     Text(
-                        text = if (isGranted) "Permission Granted" else "Permission Required",
+                        text = stringResource(if (isGranted) R.string.permission_granted else R.string.permission_required),
                         color = Color.White,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (isGranted) "GPS telemetry is active and ready." else "Telemetry is currently disabled.",
+                        text = stringResource(if (isGranted) R.string.gps_ready else R.string.telemetry_disabled),
                         color = Color(0xFF888888),
                         fontSize = 11.sp
                     )
@@ -424,7 +426,7 @@ private fun LocationStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit)
             ) {
                 Icon(Icons.Default.LocationOn, null, tint = Color.Black, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("GRANT ACCESS", color = Color.Black, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 12.sp)
+                Text(stringResource(R.string.grant_access).uppercase(), color = Color.Black, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 12.sp)
             }
         }
     }
@@ -434,7 +436,7 @@ private fun LocationStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit)
 private fun MediaStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "MEDIA INTEGRATION",
+            text = stringResource(R.string.media_integration_title).uppercase(),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = accent,
@@ -442,7 +444,7 @@ private fun MediaStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit) {
             fontSize = 20.sp
         )
         Text(
-            text = "To capture live album art, track info, progress bars, and provide playback control from your dashboard cards, Open Launcher listens to active media notifications.",
+            text = stringResource(R.string.media_integration_description),
             color = Color(0xFFAAAAAA),
             fontSize = 13.sp,
             lineHeight = 20.sp
@@ -469,13 +471,13 @@ private fun MediaStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit) {
                 )
                 Column {
                     Text(
-                        text = if (isGranted) "Notification Access Granted" else "Notification Access Required",
+                        text = stringResource(if (isGranted) R.string.notification_access_granted else R.string.notification_access_required),
                         color = Color.White,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (isGranted) "Music player widget is connected." else "Now Playing dashboard will remain inactive.",
+                        text = stringResource(if (isGranted) R.string.music_widget_connected else R.string.now_playing_inactive),
                         color = Color(0xFF888888),
                         fontSize = 11.sp
                     )
@@ -493,7 +495,7 @@ private fun MediaStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit) {
             ) {
                 Icon(Icons.Default.VolumeUp, null, tint = Color.Black, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("ENABLE MEDIA LISTENER", color = Color.Black, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 12.sp)
+                Text(stringResource(R.string.enable_media_listener).uppercase(), color = Color.Black, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 12.sp)
             }
         }
     }
@@ -503,7 +505,7 @@ private fun MediaStep(accent: Color, isGranted: Boolean, onGrant: () -> Unit) {
 private fun FinalStep(accent: Color, onSetDefault: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "READY FOR THE ROAD!",
+            text = stringResource(R.string.ready_for_road).uppercase(),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = accent,
@@ -511,7 +513,7 @@ private fun FinalStep(accent: Color, onSetDefault: () -> Unit) {
             fontSize = 20.sp
         )
         Text(
-            text = "You are all set up and ready to go. You can set Open Launcher as your default home app so it launches automatically whenever you start your vehicle.",
+            text = stringResource(R.string.ready_description),
             color = Color(0xFFAAAAAA),
             fontSize = 13.sp,
             lineHeight = 20.sp
@@ -527,7 +529,7 @@ private fun FinalStep(accent: Color, onSetDefault: () -> Unit) {
         ) {
             Icon(Icons.Default.Home, null, tint = Color.White, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(8.dp))
-            Text("SET AS DEFAULT", color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 12.sp)
+            Text(stringResource(R.string.set_as_default).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, fontSize = 12.sp)
         }
     }
 }

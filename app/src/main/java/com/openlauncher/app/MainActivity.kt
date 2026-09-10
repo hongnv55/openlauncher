@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -40,6 +41,16 @@ import com.openlauncher.app.viewmodel.LauncherViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
 class MainActivity : ComponentActivity() {
+
+    // Runs before the ViewModel (and its normal settingsFlow collection)
+    // exists, so the language has to be read with a one-off blocking call —
+    // see SettingsRepository.readAppLanguageBlocking. A language change is
+    // applied by a full process restart (restartLauncher()), which is what
+    // gets this to run again with the new value.
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val language = com.openlauncher.app.data.SettingsRepository(newBase).readAppLanguageBlocking()
+        super.attachBaseContext(com.openlauncher.app.util.LocaleHelper.wrap(newBase, language))
+    }
 
     private val vm: LauncherViewModel by viewModels()
 
@@ -405,11 +416,11 @@ class MainActivity : ComponentActivity() {
                                         pickerSlot          = pickerSlot,
                                         isCarPlayPickerMode = appPickerTarget != null,
                                         carPlayPickerLabel  = when (appPickerTarget) {
-                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.ANDROID_AUTO -> "CHOOSE ANDROID AUTO APP"
-                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.PIP          -> "CHOOSE PIP APP"
-                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.RADIO        -> "CHOOSE RADIO APP"
-                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.AUTOSTART    -> "CHOOSE AUTOSTART APP"
-                                            else -> "CHOOSE CARPLAY APP"
+                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.ANDROID_AUTO -> stringResource(R.string.choose_android_auto_app)
+                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.PIP          -> stringResource(R.string.choose_pip_app)
+                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.RADIO        -> stringResource(R.string.choose_radio_app)
+                                            com.openlauncher.app.viewmodel.LauncherViewModel.AppPickerTarget.AUTOSTART    -> stringResource(R.string.choose_autostart_app)
+                                            else -> stringResource(R.string.choose_carplay_app)
                                         },
                                         accent              = accent,
                                         iconScale           = settings.appIconScale,

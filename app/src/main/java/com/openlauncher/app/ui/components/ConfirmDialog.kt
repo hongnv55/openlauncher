@@ -3,12 +3,14 @@ package com.openlauncher.app.ui.components
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.openlauncher.app.R
 
 @Composable
 fun ConfirmDialog(
     title: String,
     message: String,
-    confirmLabel: String = "Confirm",
+    confirmLabel: String? = null,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -18,12 +20,12 @@ fun ConfirmDialog(
         text  = { Text(message, style = MaterialTheme.typography.bodyMedium) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(confirmLabel, color = Color(0xFFFF5252))
+                Text(confirmLabel ?: stringResource(R.string.confirm), color = Color(0xFFFF5252))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color(0xFFAAAAAA))
+                Text(stringResource(R.string.cancel), color = Color(0xFFAAAAAA))
             }
         },
         // The dialog surface is always dark, so pin light content colors —

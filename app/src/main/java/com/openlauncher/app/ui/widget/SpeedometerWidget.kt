@@ -12,9 +12,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openlauncher.app.util.LocationData
+import com.openlauncher.app.R
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -29,7 +31,7 @@ fun SpeedometerWidget(
 ) {
     val maxSpeed     = if (isMetric) 200f else 124f
     val speedDisplay = ((location?.speedMps ?: 0f) * if (isMetric) 3.6f else 2.237f).coerceAtLeast(0f)
-    val unitLabel    = if (isMetric) "KM/H" else "MPH"
+    val unitLabel    = stringResource(if (isMetric) R.string.unit_kilometers_per_hour_short else R.string.unit_miles_per_hour_short)
     val trackAlpha   = if (isDayMode) 0.18f else 0.07f
     val tickAlphaMaj = if (isDayMode) 0.50f else 0.28f
     val tickAlphaMin = if (isDayMode) 0.25f else 0.13f
@@ -49,7 +51,7 @@ fun SpeedometerWidget(
                 modifier            = Modifier.fillMaxSize()
             ) {
                 Text(
-                    text          = "%.0f".format(speedDisplay),
+                    text          = stringResource(R.string.number_whole, speedDisplay),
                     color         = contentColor,
                     fontSize      = 54.sp,
                     fontWeight    = androidx.compose.ui.text.font.FontWeight.SemiBold,
@@ -119,7 +121,7 @@ fun SpeedometerWidget(
                 modifier            = Modifier.offset(y = (-4).dp)
             ) {
                 Text(
-                    text          = "%.0f".format(speedDisplay),
+                    text          = stringResource(R.string.number_whole, speedDisplay),
                     color         = contentColor,
                     fontSize      = 34.sp,
                     letterSpacing = (-1).sp

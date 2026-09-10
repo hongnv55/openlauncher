@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +36,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import com.openlauncher.app.data.AppSettings
+import com.openlauncher.app.R
 import com.openlauncher.app.data.ClockStyle
 import com.openlauncher.app.data.computeWidgetMove
 import com.openlauncher.app.data.GRID_COLS
@@ -50,22 +53,22 @@ private val WIDGET_RADIUS = RoundedCornerShape(12.dp)
 
 private data class WidgetTypeInfo(
     val id: String,
-    val label: String,
+    val labelRes: Int,
     val icon: ImageVector,
-    val description: String
+    val descriptionRes: Int
 )
 
 private val ALL_WIDGET_TYPES = listOf(
-    WidgetTypeInfo("CLOCK",       "CLOCK",       Icons.Default.AccessTime,  "Time & date"),
-    WidgetTypeInfo("WEATHER",     "WEATHER",     Icons.Default.Cloud,       "Current conditions"),
-    WidgetTypeInfo("NOW_PLAYING", "NOW PLAYING", Icons.Default.MusicNote,   "Media controls"),
-    WidgetTypeInfo("TELEMETRY",   "COMPASS",     Icons.Default.Explore,     "Speed & heading"),
-    WidgetTypeInfo("ALTIMETER",   "ALTIMETER",   Icons.Default.FlightTakeoff, "Roll, pitch & altitude"),
-    WidgetTypeInfo("SPEEDOMETER", "SPEED",       Icons.Default.Speed,         "GPS speed"),
-    WidgetTypeInfo("VITALS",      "VITALS",      Icons.Default.Dns,           "Head Unit Health / Vitals"),
-    WidgetTypeInfo("TRIP_TRACKER", "TRIP TRACKER", Icons.Default.Map,          "Trip logs & stats"),
-    WidgetTypeInfo("SOUNDBOARD",  "SOUNDBOARD",  Icons.Default.Piano,         "Custom sound pads"),
-    WidgetTypeInfo("PIP",         "PIP",         Icons.Default.PictureInPicture, "Floating app overlay (beta)")
+    WidgetTypeInfo("CLOCK", R.string.widget_clock, Icons.Default.AccessTime, R.string.widget_clock_description),
+    WidgetTypeInfo("WEATHER", R.string.widget_weather, Icons.Default.Cloud, R.string.widget_weather_description),
+    WidgetTypeInfo("NOW_PLAYING", R.string.widget_now_playing, Icons.Default.MusicNote, R.string.widget_now_playing_description),
+    WidgetTypeInfo("TELEMETRY", R.string.widget_compass, Icons.Default.Explore, R.string.widget_compass_description),
+    WidgetTypeInfo("ALTIMETER", R.string.widget_altimeter, Icons.Default.FlightTakeoff, R.string.widget_altimeter_description),
+    WidgetTypeInfo("SPEEDOMETER", R.string.widget_speed, Icons.Default.Speed, R.string.widget_speed_description),
+    WidgetTypeInfo("VITALS", R.string.widget_vitals, Icons.Default.Dns, R.string.widget_vitals_description),
+    WidgetTypeInfo("TRIP_TRACKER", R.string.widget_trip_tracker, Icons.Default.Map, R.string.widget_trip_tracker_description),
+    WidgetTypeInfo("SOUNDBOARD", R.string.widget_soundboard, Icons.Default.Piano, R.string.widget_soundboard_description),
+    WidgetTypeInfo("PIP", R.string.widget_pip, Icons.Default.PictureInPicture, R.string.widget_pip_description)
 )
 
 private fun canAddWidget(settings: com.openlauncher.app.data.AppSettings): Boolean {
@@ -187,11 +190,11 @@ fun HomeScreen(
                 )
                 Spacer(Modifier.weight(1f))
                 AnimatedVisibility(visible = isWifi, enter = fadeIn(), exit = fadeOut()) {
-                    Icon(Icons.Default.Wifi, "WiFi", tint = statusIconColor, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Wifi, stringResource(R.string.wifi), tint = statusIconColor, modifier = Modifier.size(16.dp))
                 }
                 if (isWifi) Spacer(Modifier.width(6.dp))
                 AnimatedVisibility(visible = isData, enter = fadeIn(), exit = fadeOut()) {
-                    Icon(Icons.Default.SignalCellularAlt, "Data", tint = statusIconColor, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.SignalCellularAlt, stringResource(R.string.mobile_data), tint = statusIconColor, modifier = Modifier.size(16.dp))
                 }
                 if (isLandscape) {
                     Spacer(Modifier.width(8.dp))
@@ -202,7 +205,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 imageVector        = Icons.Default.Dashboard,
-                                contentDescription = "Widget library",
+                                contentDescription = stringResource(R.string.widget_library),
                                 tint               = controlIconColor,
                                 modifier           = Modifier.size(15.dp)
                             )
@@ -215,7 +218,7 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector        = Icons.Default.Edit,
-                            contentDescription = "Edit widgets",
+                            contentDescription = stringResource(R.string.edit_widgets),
                             tint               = if (editMode) accent else controlIconColor,
                             modifier           = Modifier.size(15.dp)
                         )
@@ -321,14 +324,14 @@ fun HomeScreen(
 
                 val label = when (w.id) {
                     "CLOCK"       -> clockTimeLabel(Calendar.getInstance())
-                    "WEATHER"     -> "WEATHER"
-                    "NOW_PLAYING" -> "NOW PLAYING"
-                    "TELEMETRY"   -> "COMPASS"
-                    "ALTIMETER"   -> "ALTIMETER"
-                    "SPEEDOMETER" -> "SPEED"
-                    "TRIP_TRACKER" -> "TRIP"
-                    "SOUNDBOARD"  -> "SOUND"
-                    "PIP"         -> "PIP"
+                    "WEATHER"     -> stringResource(R.string.widget_weather)
+                    "NOW_PLAYING" -> stringResource(R.string.widget_now_playing)
+                    "TELEMETRY"   -> stringResource(R.string.widget_compass)
+                    "ALTIMETER"   -> stringResource(R.string.widget_altimeter)
+                    "SPEEDOMETER" -> stringResource(R.string.widget_speed)
+                    "TRIP_TRACKER" -> stringResource(R.string.widget_trip)
+                    "SOUNDBOARD"  -> stringResource(R.string.widget_sound)
+                    "PIP"         -> stringResource(R.string.widget_pip)
                     else          -> w.id
                 }
 
@@ -627,11 +630,11 @@ private fun WidgetContextMenu(
                 .width(200.dp)
         ) {
             val inactiveMenuTint = if (isDayMode) Color(0xFF777777) else Color(0xFF555555)
-            ContextRow("RESIZE", Icons.Default.OpenWith, accent, onResize, isDayMode = isDayMode)
+            ContextRow(stringResource(R.string.resize), Icons.Default.OpenWith, accent, onResize, isDayMode = isDayMode)
             if (widgetId == "CLOCK") {
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "DIGITAL",
+                    label   = stringResource(R.string.digital),
                     icon    = Icons.Default.Schedule,
                     tint    = if (clockStyle == ClockStyle.DIGITAL) accent else inactiveMenuTint,
                     onClick = { onSetClockStyle(ClockStyle.DIGITAL); onDismiss() },
@@ -639,7 +642,7 @@ private fun WidgetContextMenu(
                 )
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "ANALOG",
+                    label   = stringResource(R.string.analog),
                     icon    = Icons.Default.Watch,
                     tint    = if (clockStyle == ClockStyle.ANALOG) accent else inactiveMenuTint,
                     onClick = { onSetClockStyle(ClockStyle.ANALOG); onDismiss() },
@@ -649,7 +652,7 @@ private fun WidgetContextMenu(
             if (widgetId == "VITALS") {
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "DIAL GAUGES",
+                    label   = stringResource(R.string.dial_gauges),
                     icon    = Icons.Default.Adjust,
                     tint    = if (!vitalsAsBars) accent else inactiveMenuTint,
                     onClick = { onSetVitalsAsBars(false); onDismiss() },
@@ -657,7 +660,7 @@ private fun WidgetContextMenu(
                 )
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "BARS VIEW",
+                    label   = stringResource(R.string.bars_view),
                     icon    = Icons.Default.FormatAlignLeft,
                     tint    = if (vitalsAsBars) accent else inactiveMenuTint,
                     onClick = { onSetVitalsAsBars(true); onDismiss() },
@@ -667,7 +670,7 @@ private fun WidgetContextMenu(
             if (widgetId == "SPEEDOMETER") {
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "DIAL TRACK",
+                    label   = stringResource(R.string.dial_track),
                     icon    = Icons.Default.Speed,
                     tint    = if (!speedometerDigitalOnly) accent else inactiveMenuTint,
                     onClick = { onSetSpeedometerDigitalOnly(false); onDismiss() },
@@ -675,7 +678,7 @@ private fun WidgetContextMenu(
                 )
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "DIGITAL ONLY",
+                    label   = stringResource(R.string.digital_only),
                     icon    = Icons.Default.Dialpad,
                     tint    = if (speedometerDigitalOnly) accent else inactiveMenuTint,
                     onClick = { onSetSpeedometerDigitalOnly(true); onDismiss() },
@@ -684,22 +687,22 @@ private fun WidgetContextMenu(
             }
             if (widgetId == "NOW_PLAYING") {
                 HorizontalDivider(color = menuDivider)
-                ContextRow("ASSIGN CARPLAY APP",      Icons.Default.PhoneAndroid,  accent, onAssignCarPlay, isDayMode = isDayMode)
+                ContextRow(stringResource(R.string.assign_carplay_app), Icons.Default.PhoneAndroid, accent, onAssignCarPlay, isDayMode = isDayMode)
                 if (carPlayPackage.isNotEmpty()) {
                     HorizontalDivider(color = menuDivider)
-                    ContextRow("CLEAR CARPLAY APP", Icons.Default.PhoneAndroid, Color(0xFF884444), onClearCarPlay, isDayMode = isDayMode)
+                    ContextRow(stringResource(R.string.clear_carplay_app), Icons.Default.PhoneAndroid, Color(0xFF884444), onClearCarPlay, isDayMode = isDayMode)
                 }
                 HorizontalDivider(color = menuDivider)
-                ContextRow("ASSIGN ANDROID AUTO APP", Icons.Default.DirectionsCar, accent, onAssignAndroidAuto, isDayMode = isDayMode)
+                ContextRow(stringResource(R.string.assign_android_auto_app), Icons.Default.DirectionsCar, accent, onAssignAndroidAuto, isDayMode = isDayMode)
                 if (androidAutoPackage.isNotEmpty()) {
                     HorizontalDivider(color = menuDivider)
-                    ContextRow("CLEAR ANDROID AUTO APP", Icons.Default.DirectionsCar, Color(0xFF884444), onClearAndroidAuto, isDayMode = isDayMode)
+                    ContextRow(stringResource(R.string.clear_android_auto_app), Icons.Default.DirectionsCar, Color(0xFF884444), onClearAndroidAuto, isDayMode = isDayMode)
                 }
             }
             if (widgetId == "PIP") {
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "1 APP",
+                    label   = pluralStringResource(R.plurals.app_count, 1, 1),
                     icon    = Icons.Default.PictureInPicture,
                     tint    = if (pipAppCount == 1) accent else inactiveMenuTint,
                     onClick = { onSetPipAppCount(1) },
@@ -707,7 +710,7 @@ private fun WidgetContextMenu(
                 )
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "2 APPS",
+                    label   = pluralStringResource(R.plurals.app_count, 2, 2),
                     icon    = Icons.Default.PictureInPicture,
                     tint    = if (pipAppCount == 2) accent else inactiveMenuTint,
                     onClick = { onSetPipAppCount(2) },
@@ -715,32 +718,32 @@ private fun WidgetContextMenu(
                 )
                 HorizontalDivider(color = menuDivider)
                 ContextRow(
-                    label   = "3 APPS",
+                    label   = pluralStringResource(R.plurals.app_count, 3, 3),
                     icon    = Icons.Default.PictureInPicture,
                     tint    = if (pipAppCount == 3) accent else inactiveMenuTint,
                     onClick = { onSetPipAppCount(3) },
                     isDayMode = isDayMode
                 )
                 HorizontalDivider(color = menuDivider)
-                ContextRow("ASSIGN PIP APP 1", Icons.Default.PictureInPicture, accent, { onAssignPip(0) }, isDayMode = isDayMode)
+                ContextRow(stringResource(R.string.assign_pip_app, 1), Icons.Default.PictureInPicture, accent, { onAssignPip(0) }, isDayMode = isDayMode)
                 if (pipAppPackages.getOrElse(0) { "" }.isNotEmpty()) {
                     HorizontalDivider(color = menuDivider)
-                    ContextRow("CLEAR PIP APP 1", Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(0) }, isDayMode = isDayMode)
+                    ContextRow(stringResource(R.string.clear_pip_app, 1), Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(0) }, isDayMode = isDayMode)
                 }
                 if (pipAppCount >= 2) {
                     HorizontalDivider(color = menuDivider)
-                    ContextRow("ASSIGN PIP APP 2", Icons.Default.PictureInPicture, accent, { onAssignPip(1) }, isDayMode = isDayMode)
+                    ContextRow(stringResource(R.string.assign_pip_app, 2), Icons.Default.PictureInPicture, accent, { onAssignPip(1) }, isDayMode = isDayMode)
                     if (pipAppPackages.getOrElse(1) { "" }.isNotEmpty()) {
                         HorizontalDivider(color = menuDivider)
-                        ContextRow("CLEAR PIP APP 2", Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(1) }, isDayMode = isDayMode)
+                        ContextRow(stringResource(R.string.clear_pip_app, 2), Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(1) }, isDayMode = isDayMode)
                     }
                 }
                 if (pipAppCount >= 3) {
                     HorizontalDivider(color = menuDivider)
-                    ContextRow("ASSIGN PIP APP 3", Icons.Default.PictureInPicture, accent, { onAssignPip(2) }, isDayMode = isDayMode)
+                    ContextRow(stringResource(R.string.assign_pip_app, 3), Icons.Default.PictureInPicture, accent, { onAssignPip(2) }, isDayMode = isDayMode)
                     if (pipAppPackages.getOrElse(2) { "" }.isNotEmpty()) {
                         HorizontalDivider(color = menuDivider)
-                        ContextRow("CLEAR PIP APP 3", Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(2) }, isDayMode = isDayMode)
+                        ContextRow(stringResource(R.string.clear_pip_app, 3), Icons.Default.PictureInPicture, Color(0xFF884444), { onClearPip(2) }, isDayMode = isDayMode)
                     }
                 }
             }
@@ -810,18 +813,18 @@ private fun WidgetResizeDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                SpanRow(label = "WIDTH",  value = spanX, min = 1, max = maxSpanX, accent = accent, isDayMode = isDayMode) { spanX = it }
-                SpanRow(label = "HEIGHT", value = spanY, min = 1, max = maxSpanY, accent = accent, isDayMode = isDayMode) { spanY = it }
+                SpanRow(label = stringResource(R.string.width), value = spanX, min = 1, max = maxSpanX, accent = accent, isDayMode = isDayMode) { spanX = it }
+                SpanRow(label = stringResource(R.string.height), value = spanY, min = 1, max = maxSpanY, accent = accent, isDayMode = isDayMode) { spanY = it }
             }
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(spanX, spanY) }) {
-                Text("APPLY", color = accent, fontSize = 11.sp, letterSpacing = 1.sp)
+                Text(stringResource(R.string.apply), color = accent, fontSize = 11.sp, letterSpacing = 1.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = cancelColor, fontSize = 11.sp, letterSpacing = 1.sp)
+                Text(stringResource(R.string.cancel), color = cancelColor, fontSize = 11.sp, letterSpacing = 1.sp)
             }
         },
         containerColor    = dialogBg,
@@ -866,7 +869,7 @@ private fun SpanRow(
             )
         }
         Text(
-            text      = "$value",
+            text      = stringResource(R.string.integer_value, value),
             color     = textColor,
             fontSize  = 16.sp,
             textAlign = TextAlign.Center,
@@ -942,7 +945,7 @@ private fun WidgetLibraryDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text          = "WIDGET LIBRARY",
+                    text          = stringResource(R.string.widget_library),
                     color         = titleColor,
                     fontSize      = 9.sp,
                     letterSpacing = 2.sp
@@ -975,7 +978,11 @@ private fun WidgetLibraryDialog(
             if (!canAdd) {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text          = "ALL ${GRID_COLS * GRID_ROWS} CELLS OCCUPIED — REMOVE A WIDGET TO ADD MORE",
+                    text          = pluralStringResource(
+                        R.plurals.all_widget_cells_occupied,
+                        GRID_COLS * GRID_ROWS,
+                        GRID_COLS * GRID_ROWS
+                    ),
                     color         = if (isDayMode) Color(0xFFE03131) else Color(0xFF3A3A3A),
                     fontSize      = 8.sp,
                     letterSpacing = 1.sp,
@@ -1017,7 +1024,7 @@ private fun WidgetLibraryCard(
         Icon(info.icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
         Spacer(Modifier.height(5.dp))
         Text(
-            text          = info.label,
+            text          = stringResource(info.labelRes),
             color         = labelColor,
             fontSize      = 7.sp,
             letterSpacing = 1.sp,
@@ -1028,9 +1035,9 @@ private fun WidgetLibraryCard(
         Spacer(Modifier.height(3.dp))
         Text(
             text          = when {
-                isActive -> "ACTIVE"
-                !canAdd  -> "FULL"
-                else     -> "ADD"
+                isActive -> stringResource(R.string.active)
+                !canAdd  -> stringResource(R.string.full)
+                else     -> stringResource(R.string.add)
             },
             color         = when {
                 isActive -> accent.copy(alpha = 0.75f)

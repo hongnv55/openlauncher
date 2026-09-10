@@ -46,6 +46,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
 import com.openlauncher.app.data.AppSettings
+import com.openlauncher.app.R
 import com.openlauncher.app.data.DefaultShortcutIcon
 import com.openlauncher.app.data.ShortcutConfig
 import com.openlauncher.app.data.SidebarPosition
@@ -328,6 +330,15 @@ fun Sidebar(
     val iconInactive = inactiveIconOn(sidebarBg, isDayMode)
     val density      = LocalDensity.current
     val slotSizePx   = with(density) { SLOT_SIZE.toPx() }
+    // Always exactly 4 fixed positions on the sidebar itself — configured
+    // directly there (press-and-hold an empty one to assign, an assigned one
+    // to change/clear it) rather than via a separate add/remove list in
+    // Settings. Padding here (instead of normalizing the persisted list
+    // itself) means an install whose settings predate this — shorter than 4
+    // — still shows all 4 slots immediately, no migration needed.
+    val shortcuts    = remember(settings.shortcuts) {
+        (settings.shortcuts + List(4) { ShortcutConfig() }).take(4)
+    }
 
     var actionSheetSlot by remember { mutableStateOf<Int?>(null) }
     var iconPickerSlot  by remember { mutableStateOf<Int?>(null) }
@@ -337,7 +348,7 @@ fun Sidebar(
 
     fun dragTargetIndex(): Int = if (draggingIndex < 0) -1 else
         (draggingIndex + (dragOffsetPx / slotSizePx).roundToInt())
-            .coerceIn(0, settings.shortcuts.size - 1)
+            .coerceIn(0, shortcuts.size - 1)
 
     fun slotTranslation(index: Int): Float {
         if (draggingIndex < 0 || index == draggingIndex) return 0f
@@ -351,7 +362,7 @@ fun Sidebar(
     }
 
     val shortcutsContent: @Composable () -> Unit = {
-        settings.shortcuts.forEachIndexed { index, shortcut ->
+        shortcuts.forEachIndexed { index, shortcut ->
             val isDragging  = (index == draggingIndex)
             val translation = if (isDragging) dragOffsetPx else slotTranslation(index)
 
@@ -391,7 +402,7 @@ fun Sidebar(
     val navButtons: @Composable () -> Unit = {
         NavButton(
             icon         = Icons.Default.Apps,
-            label        = "Apps",
+            label        = stringResource(R.string.apps),
             isActive     = currentDest == NavDestination.APP_LIBRARY,
             accent       = accent,
             iconInactive = iconInactive,
@@ -401,7 +412,7 @@ fun Sidebar(
         if (!isHorizontal) Spacer(Modifier.height(6.dp))
         NavButton(
             icon         = Icons.Default.Settings,
-            label        = "Settings",
+            label        = stringResource(R.string.settings),
             isActive     = currentDest == NavDestination.SETTINGS,
             accent       = accent,
             iconInactive = iconInactive,
@@ -411,7 +422,7 @@ fun Sidebar(
         if (!isHorizontal) Spacer(Modifier.height(6.dp))
         NavButton(
             icon         = Icons.Default.Home,
-            label        = "Home",
+            label        = stringResource(R.string.home),
             isActive     = currentDest == NavDestination.HOME,
             accent       = accent,
             iconInactive = iconInactive,
@@ -483,13 +494,13 @@ fun Sidebar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!settings.bottomBarShortcutsRight) {
-                    NavButton(Icons.Default.Home,     "Home",     currentDest == NavDestination.HOME,        accent, iconInactive, true) { onNavigate(NavDestination.HOME) }
-                    NavButton(Icons.Default.Settings, "Settings", currentDest == NavDestination.SETTINGS,    accent, iconInactive, true) { onNavigate(NavDestination.SETTINGS) }
-                    NavButton(Icons.Default.Apps,     "Apps",     currentDest == NavDestination.APP_LIBRARY, accent, iconInactive, true) { onNavigate(NavDestination.APP_LIBRARY) }
+                    NavButton(Icons.Default.Home, stringResource(R.string.home), currentDest == NavDestination.HOME, accent, iconInactive, true) { onNavigate(NavDestination.HOME) }
+                    NavButton(Icons.Default.Settings, stringResource(R.string.settings), currentDest == NavDestination.SETTINGS, accent, iconInactive, true) { onNavigate(NavDestination.SETTINGS) }
+                    NavButton(Icons.Default.Apps, stringResource(R.string.apps), currentDest == NavDestination.APP_LIBRARY, accent, iconInactive, true) { onNavigate(NavDestination.APP_LIBRARY) }
                 } else {
-                    NavButton(Icons.Default.Apps,     "Apps",     currentDest == NavDestination.APP_LIBRARY, accent, iconInactive, true) { onNavigate(NavDestination.APP_LIBRARY) }
-                    NavButton(Icons.Default.Settings, "Settings", currentDest == NavDestination.SETTINGS,    accent, iconInactive, true) { onNavigate(NavDestination.SETTINGS) }
-                    NavButton(Icons.Default.Home,     "Home",     currentDest == NavDestination.HOME,        accent, iconInactive, true) { onNavigate(NavDestination.HOME) }
+                    NavButton(Icons.Default.Apps, stringResource(R.string.apps), currentDest == NavDestination.APP_LIBRARY, accent, iconInactive, true) { onNavigate(NavDestination.APP_LIBRARY) }
+                    NavButton(Icons.Default.Settings, stringResource(R.string.settings), currentDest == NavDestination.SETTINGS, accent, iconInactive, true) { onNavigate(NavDestination.SETTINGS) }
+                    NavButton(Icons.Default.Home, stringResource(R.string.home), currentDest == NavDestination.HOME, accent, iconInactive, true) { onNavigate(NavDestination.HOME) }
                 }
             }
         }
@@ -603,8 +614,8 @@ fun Sidebar(
     iconPickerSlot?.let { slot ->
         IconPickerDialog(
             accent          = accent,
-            hasNativeIcon   = settings.shortcuts.getOrNull(slot)?.packageName?.isNotEmpty() == true,
-            currentOverride = settings.shortcuts.getOrNull(slot)?.customIconOverride,
+            hasNativeIcon   = shortcuts.getOrNull(slot)?.packageName?.isNotEmpty() == true,
+            currentOverride = shortcuts.getOrNull(slot)?.customIconOverride,
             onPick  = { icon ->
                 iconPickerSlot = null
                 onShortcutSetIcon(slot, icon)
@@ -751,7 +762,7 @@ private fun ShortcutSlot(
                     else -> {
                         Icon(
                             imageVector        = Icons.Default.Add,
-                            contentDescription = "Add shortcut",
+                            contentDescription = stringResource(R.string.add_shortcut),
                             tint               = inactiveIconOn(sidebarBg, isDayMode, faint = true),
                             modifier           = Modifier.size(ICON_SIZE)
                         )
@@ -779,11 +790,11 @@ private fun ShortcutActionDialog(
                 .padding(vertical = 4.dp)
                 .width(180.dp)
         ) {
-            ActionRow("CHANGE APP",     Icons.Default.SwapHoriz, accent, onChangeApp)
+            ActionRow(stringResource(R.string.change_app), Icons.Default.SwapHoriz, accent, onChangeApp)
             HorizontalDivider(color = Color(0xFF1A1A1A))
-            ActionRow("CUSTOMIZE ICON", Icons.Default.Palette,   accent, onCustomizeIcon)
+            ActionRow(stringResource(R.string.customize_icon), Icons.Default.Palette, accent, onCustomizeIcon)
             HorizontalDivider(color = Color(0xFF1A1A1A))
-            ActionRow("REMOVE",         Icons.Default.Delete,     Color(0xFF993333), onRemove)
+            ActionRow(stringResource(R.string.remove), Icons.Default.Delete, Color(0xFF993333), onRemove)
         }
     }
 }
@@ -822,7 +833,7 @@ private fun IconPickerDialog(
                 .padding(12.dp)
         ) {
             Text(
-                "CHOOSE ICON",
+                stringResource(R.string.choose_icon),
                 color         = Color(0xFF888888),
                 fontSize      = 9.sp,
                 letterSpacing = 2.sp,
@@ -842,7 +853,7 @@ private fun IconPickerDialog(
                 ) {
                     Icon(Icons.Default.Apps, null, tint = if (currentOverride == null) accent else Color(0xFF666666), modifier = Modifier.size(18.dp))
                     Text(
-                        "NATIVE APP ICON",
+                        stringResource(R.string.native_app_icon),
                         color         = if (currentOverride == null) accent else Color(0xFF888888),
                         fontSize      = 9.sp,
                         letterSpacing = 1.sp
@@ -869,7 +880,7 @@ private fun IconPickerDialog(
                     ) {
                         Icon(
                             imageVector        = iconOption.toIcon(),
-                            contentDescription = iconOption.name,
+                            contentDescription = stringResource(R.string.choose_icon),
                             tint               = if (isSelected) accent else Color(0xFF888888),
                             modifier           = Modifier.size(20.dp)
                         )

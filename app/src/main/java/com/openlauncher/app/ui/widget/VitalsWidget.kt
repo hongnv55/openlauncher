@@ -21,12 +21,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import java.io.File
+import java.util.Locale
+import com.openlauncher.app.R
 
 @Composable
 fun VitalsWidget(
@@ -40,7 +43,7 @@ fun VitalsWidget(
 
     var cpuUsage by remember { mutableFloatStateOf(20f) }
     var ramUsedPercent by remember { mutableFloatStateOf(45f) }
-    var ramDisplayGb by remember { mutableStateOf("0.0G") }
+    var ramUsedGb by remember { mutableDoubleStateOf(0.0) }
     var temperature by remember { mutableFloatStateOf(35f) }
 
     // CPU Stat Tracking variables
@@ -99,10 +102,10 @@ fun VitalsWidget(
             val usedGb = totalGb - availGb
             
             ramUsedPercent = ((usedGb / totalGb) * 100f).toFloat().coerceIn(0f, 100f)
-            ramDisplayGb = "%.1fG".format(usedGb)
+            ramUsedGb = usedGb
         } catch (_: Exception) {
             ramUsedPercent = 50f
-            ramDisplayGb = "—"
+            ramUsedGb = Double.NaN
         }
     }
 
@@ -179,24 +182,24 @@ fun VitalsWidget(
             ) {
                 BarGauge(
                     value = cpuUsage,
-                    label = "CPU",
-                    displayValue = "%.0f%%".format(cpuUsage),
+                    label = stringResource(R.string.widget_cpu),
+                    displayValue = stringResource(R.string.percent_whole, cpuUsage),
                     activeColor = cpuColor,
                     isDayMode = isDayMode,
                     modifier = Modifier.fillMaxWidth()
                 )
                 BarGauge(
                     value = ramUsedPercent,
-                    label = "RAM",
-                    displayValue = ramDisplayGb,
+                    label = stringResource(R.string.widget_ram),
+                    displayValue = if (ramUsedGb.isNaN()) "—" else stringResource(R.string.memory_gigabytes_short, ramUsedGb),
                     activeColor = ramColor,
                     isDayMode = isDayMode,
                     modifier = Modifier.fillMaxWidth()
                 )
                 BarGauge(
                     value = temperature,
-                    label = "TEMP",
-                    displayValue = "%.0f°".format(temperature),
+                    label = stringResource(R.string.widget_temperature_short),
+                    displayValue = stringResource(R.string.temperature_degrees, temperature),
                     activeColor = tempColor,
                     isDayMode = isDayMode,
                     modifier = Modifier.fillMaxWidth()
@@ -210,8 +213,8 @@ fun VitalsWidget(
             ) {
                 DialGauge(
                     value = cpuUsage,
-                    label = "CPU",
-                    displayValue = "%.0f%%".format(cpuUsage),
+                    label = stringResource(R.string.widget_cpu),
+                    displayValue = stringResource(R.string.percent_whole, cpuUsage),
                     activeColor = cpuColor,
                     isDayMode = isDayMode,
                     modifier = Modifier.weight(1f).fillMaxHeight()
@@ -219,8 +222,8 @@ fun VitalsWidget(
 
                 DialGauge(
                     value = ramUsedPercent,
-                    label = "RAM",
-                    displayValue = ramDisplayGb,
+                    label = stringResource(R.string.widget_ram),
+                    displayValue = if (ramUsedGb.isNaN()) "—" else stringResource(R.string.memory_gigabytes_short, ramUsedGb),
                     activeColor = ramColor,
                     isDayMode = isDayMode,
                     modifier = Modifier.weight(1f).fillMaxHeight()
@@ -228,8 +231,8 @@ fun VitalsWidget(
 
                 DialGauge(
                     value = temperature,
-                    label = "TEMP",
-                    displayValue = "%.0f°".format(temperature),
+                    label = stringResource(R.string.widget_temperature_short),
+                    displayValue = stringResource(R.string.temperature_degrees, temperature),
                     activeColor = tempColor,
                     isDayMode = isDayMode,
                     modifier = Modifier.weight(1f).fillMaxHeight()
