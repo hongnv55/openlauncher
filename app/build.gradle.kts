@@ -1,3 +1,5 @@
+import java.time.LocalDate
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -15,6 +17,10 @@ android {
         targetSdk      = 36
         versionCode    = 10
         versionName    = "0.0.9"
+        // Date only, deliberately not a timestamp: this value is baked into
+        // BuildConfig, so a seconds-resolution one would invalidate it (and
+        // everything downstream of it) on every single build.
+        buildConfigField("String", "BUILD_DATE", "\"${LocalDate.now()}\"")
         manifestPlaceholders["sharedUserId"] = ""
     }
 
