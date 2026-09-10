@@ -156,6 +156,13 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Manifest declares SplashTheme for this activity so WindowManager's
+        // starting window (painted from the theme alone, before this method
+        // even runs) shows the centered app icon instead of a blank black
+        // screen. Switching back to the real theme here — before
+        // super.onCreate() — means the very first window this Activity
+        // itself is responsible for already carries the normal theme.
+        setTheme(R.style.AppTheme)
         super.onCreate(savedInstanceState)
         hideSystemBars()
         @Suppress("DEPRECATION")

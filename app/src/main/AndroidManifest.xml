@@ -56,17 +56,21 @@
         android:supportsRtl="true"
         android:hardwareAccelerated="true"
         android:persistent="true"
-        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+        android:theme="@style/AppTheme"
         android:exported="true">
 
-        <!-- Single launcher activity -->
+        <!-- Single launcher activity. Its own theme (SplashTheme) overrides
+             the application's only for the window WindowManager paints
+             before onCreate runs — MainActivity switches back to AppTheme
+             itself once real content is ready (see setTheme in onCreate). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden"
-            android:windowSoftInputMode="adjustNothing">
+            android:windowSoftInputMode="adjustNothing"
+            android:theme="@style/SplashTheme">
 
             <!-- HOME launcher intent filters -->
             <intent-filter>

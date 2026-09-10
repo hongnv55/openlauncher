@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app's real theme — same as before, just named so MainActivity can
+         switch back to it once it's actually ready to draw (see SplashTheme
+         below and MainActivity.onCreate's setTheme call). -->
+    <style name="AppTheme" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
+    <!-- Applied to MainActivity only, in the manifest. WindowManager paints
+         this theme's windowBackground as the "starting window" the instant
+         the process is launched — well before onCreate, ViewModel setup, or
+         Compose's first frame — which is exactly the gap that otherwise
+         shows as a long plain-black screen on this hardware. -->
+    <style name="SplashTheme" parent="AppTheme">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+</resources>

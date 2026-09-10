@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cold-start window background: shown by WindowManager's starting-window
+  mechanism from the manifest theme alone, before any app code (or Compose)
+  has run — this is what actually covers the gap between process launch and
+  the first real frame, which otherwise reads as a long plain-black screen
+  on this hardware. ic_launcher.png is itself a solid black square (no
+  alpha), so it needs no separate background layer to blend into.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/black" />
+    <item
+        android:width="140dp"
+        android:height="140dp"
+        android:gravity="center"
+        android:drawable="@mipmap/ic_launcher" />
+</layer-list>

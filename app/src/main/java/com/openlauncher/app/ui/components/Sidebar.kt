@@ -72,6 +72,9 @@ private val ICON_SIZE   = 30.dp
 // can run bigger than ICON_SIZE without getting cut off at the chip's edge.
 private val NAV_ICON_SIZE = 46.dp
 private val SLOT_SIZE   = 52.dp
+// Gap between the 4 shortcut slots only — nav buttons (which also key off
+// SLOT_SIZE for their own cell width) stay untouched.
+private val SLOT_GAP    = 2.dp
 // Big enough that the two non-flush corners read as a half-capsule against
 // the 56dp bar width, rather than a merely "slightly softened" rectangle.
 private val SIDEBAR_CORNER  = 24.dp
@@ -329,7 +332,11 @@ fun Sidebar(
     val sidebarBg    = settings.resolveSidebarColor(isDayMode)
     val iconInactive = inactiveIconOn(sidebarBg, isDayMode)
     val density      = LocalDensity.current
-    val slotSizePx   = with(density) { SLOT_SIZE.toPx() }
+    // Pitch between slot centers for drag-reorder math — must match the
+    // actual on-screen spacing (slot width + the gap Arrangement.spacedBy
+    // adds between them below), not just the slot's own width, or dragging
+    // would visually desync from the reorder threshold.
+    val slotSizePx   = with(density) { (SLOT_SIZE + SLOT_GAP).toPx() }
     // Always exactly 4 fixed positions on the sidebar itself — configured
     // directly there (press-and-hold an empty one to assign, an assigned one
     // to change/clear it) rather than via a separate add/remove list in
@@ -481,6 +488,7 @@ fun Sidebar(
                     .fillMaxHeight()
                     .padding(horizontal = 150.dp)
                     .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(SLOT_GAP),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 shortcutsContent()
@@ -560,7 +568,8 @@ fun Sidebar(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .padding(top = 6.dp, bottom = 2.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(SLOT_GAP)
             ) {
                 shortcutsContent()
             }
