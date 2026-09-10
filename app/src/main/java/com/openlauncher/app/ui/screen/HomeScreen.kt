@@ -41,7 +41,6 @@ import com.openlauncher.app.data.GRID_ROWS
 import com.openlauncher.app.data.WidgetConfig
 import com.openlauncher.app.model.NowPlayingState
 import com.openlauncher.app.model.WeatherState
-import com.openlauncher.app.ui.components.resolveSidebarColor
 import com.openlauncher.app.ui.theme.LocalDayMode
 import com.openlauncher.app.ui.widget.*
 import java.util.Calendar
@@ -495,7 +494,6 @@ fun HomeScreen(
                             splitFraction2 = settings.pipPaneSplit2,
                             accent         = accent,
                             launcherBackground = launcherBackground,
-                            dividerGripColor = settings.resolveSidebarColor(isDayMode),
                             isDayMode      = isDayMode,
                             isActive       = isActive,
                             isEditing      = editMode,

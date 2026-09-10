@@ -71,6 +71,29 @@ fun paneOuterStroke(accent: Color): Brush =
     SolidColor(lerp(Color.White, accent, 0.15f))
 
 /**
+ * The drag grip on a PIP pane divider.
+ *
+ * Fixed per mode rather than borrowed from the sidebar's colour, which it used
+ * to be: that colour is translucent glass tuned to sit over the wallpaper,
+ * while this sits in the narrow gap between two panes and overlaps their edges,
+ * so it composites against something else entirely and came out washed.
+ *
+ * The tone inverts with the mode because everything around the grip does. In
+ * day mode the gap shows a bright wallpaper and the panes are [paneSurface]'s
+ * near-white, so the grip goes dark; at night both are near-black, so it goes
+ * light. That keeps it readable against the gap and both pane edges at once,
+ * without depending on what an embedded app happens to draw beside it.
+ *
+ * Cool-tinted mid greys rather than black and white: the palette around it
+ * (#202226, #08090A, #F7F8F9) is cool and desaturated, and hard #000/#FFF is
+ * what makes a handle look dated. It is deliberately brighter than the
+ * surrounding chrome at night — this is an affordance, not a surface, and
+ * should read as the thing you grab.
+ */
+fun paneDividerGrip(isDayMode: Boolean): Color =
+    if (isDayMode) Color(0xFF6B7280) else Color(0xFFB6BCC6)
+
+/**
  * The complete content-card treatment in one call, so the call sites are
  * identical rather than merely similar. Pass [shape] only when a surface needs
  * a different silhouette; pass a custom fill by applying `.background()` after

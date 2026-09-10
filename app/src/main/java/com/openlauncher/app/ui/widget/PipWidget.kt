@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
 import com.openlauncher.app.ui.theme.PaneBorderWidth
+import com.openlauncher.app.ui.theme.paneDividerGrip
 import com.openlauncher.app.ui.theme.PaneShape
 import com.openlauncher.app.ui.theme.paneOuterStroke
 import com.openlauncher.app.ui.theme.paneSurface
@@ -115,7 +116,6 @@ fun PipWidget(
     splitFraction2: Float = 0.5f,
     accent: Color,
     launcherBackground: Color = Color.Black,
-    dividerGripColor: Color = Color.White,
     isDayMode: Boolean,
     isActive: Boolean = true,
     isEditing: Boolean,
@@ -305,7 +305,7 @@ fun PipWidget(
                 onDragEnd = ::endDrag,
                 onTap = { onSwap(0) },
                 accent = accent,
-                gripColor = dividerGripColor
+                gripColor = paneDividerGrip(isDayMode)
             )
             if (showThird) {
                 PaneDivider(
@@ -322,7 +322,7 @@ fun PipWidget(
                     onDragEnd = ::endDrag,
                     onTap = { onSwap(1) },
                     accent = accent,
-                    gripColor = dividerGripColor
+                    gripColor = paneDividerGrip(isDayMode)
                 )
             }
 
@@ -409,12 +409,10 @@ private fun PaneDivider(
             },
         contentAlignment = Alignment.Center
     ) {
-        // Fill comes from the sidebar's own colour (see resolveSidebarColor)
-        // rather than a fixed neutral, so the two read as the same "chrome"
-        // language. That colour is translucent by default and this sits over
-        // pane content rather than the wallpaper, so it matches in tone, not
-        // exactly. No border — the shadow alone separates it from whatever is
-        // underneath.
+        // Fill is a fixed per-mode tone (see paneDividerGrip) rather than the
+        // sidebar's colour: that one is translucent glass tuned for the
+        // wallpaper, and composited here over the pane gap it came out washed.
+        // No border — the shadow alone lifts it off whatever is underneath.
         val gripShape = RoundedCornerShape(DIVIDER_GRIP_WIDTH / 2)
         Box(
             Modifier
