@@ -1,6 +1,11 @@
 package com.openlauncher.app.ui.components
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.drawable.Drawable
+import android.net.Uri
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,13 +30,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -51,14 +54,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
 import com.openlauncher.app.data.AppSettings
 import com.openlauncher.app.data.DefaultShortcutIcon
 import com.openlauncher.app.data.ShortcutConfig
 import com.openlauncher.app.data.SidebarPosition
 import com.openlauncher.app.model.NavDestination
 import com.openlauncher.app.ui.theme.LocalDayMode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -156,47 +159,107 @@ private fun Modifier.glassRim(color: Color, radius: Dp, flush: FlushEdge): Modif
  * aligned it pushed it off-panel entirely. Translating at draw time has no such
  * dependency.
  */
+/**
+ * Where the panel's blurred backdrop comes from. The two cases are genuinely
+ * different work, so they are named rather than sniffed from an `Any`:
+ *
+ *  - [PreBlurred] is one of the built-in wallpapers, shipped alongside a
+ *    blurred twin (445x313, gaussian). Best quality and near-free to decode.
+ *  - [NeedsBlur] is a wallpaper the user picked, which has no twin, so the
+ *    blur has to be produced here.
+ */
+sealed interface BackdropSource {
+    data class PreBlurred(@DrawableRes val resId: Int) : BackdropSource
+    data class NeedsBlur(val uri: Uri) : BackdropSource
+}
+
+/**
+ * Roughly the width the blurred backdrop is decoded to, matching the built-in
+ * blurred assets. Detail below the resulting upscale factor is gone, which is
+ * the whole point — the magnification is itself a box blur.
+ */
+private const val BACKDROP_DECODE_WIDTH = 445
+
+/**
+ * Decodes [source] small.
+ *
+ * `inSampleSize` rather than Coil: a Coil request with an explicit `.size()`
+ * was measured to come back at full resolution here (1/8 and 1/64 requests
+ * produced pixel-identical output), so the downsample never happened. This goes
+ * through BitmapFactory, where the decoder itself drops the pixels and the size
+ * is not advisory.
+ */
+private fun decodeBackdrop(context: Context, source: BackdropSource): Bitmap? = runCatching {
+    when (source) {
+        is BackdropSource.PreBlurred ->
+            BitmapFactory.decodeResource(context.resources, source.resId)
+
+        is BackdropSource.NeedsBlur -> {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(source.uri)
+                ?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            if (bounds.outWidth <= 0) return@runCatching null
+            // Largest power of two that still leaves us at or above the target
+            // width — BitmapFactory rounds inSampleSize down to a power of two
+            // anyway, so computing it that way avoids a surprise.
+            var sample = 1
+            while (bounds.outWidth / (sample * 2) >= BACKDROP_DECODE_WIDTH) sample *= 2
+            val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+            context.contentResolver.openInputStream(source.uri)
+                ?.use { BitmapFactory.decodeStream(it, null, opts) }
+        }
+    }
+}.getOrNull()
+
+/**
+ * The panel's frosted backdrop: a blurred copy of the wallpaper, drawn at the
+ * same crop geometry and size as the fullscreen layer and translated back by
+ * this panel's own position, so the fragment showing through lines up with the
+ * sharp image around it. The sidebar silhouette comes from the parent's
+ * `.clip(sidebarShape)`; nothing here is shaped like a sidebar.
+ *
+ * Drawn in the draw phase rather than laid out as an oversized child with
+ * Modifier.offset. That approach depended on how the parent placed a child
+ * bigger than itself, and measurement showed this Box *centres* such a child (a
+ * 1920px node in a 70px panel landed 925px left of the panel origin) rather
+ * than pinning it top-left, so the offset that should have aligned it pushed it
+ * off-panel entirely. Drawing has no such dependency.
+ */
 @Composable
 private fun GlassBackdrop(
-    model: Any?,
+    source: BackdropSource?,
     wallpaperOriginPx: IntOffset,
     wallpaperSizePx: IntSize,
     dim: Float,
     panelOriginPx: IntOffset
 ) {
     // Zero on the very first pass, before onGloballyPositioned has reported.
-    if (model == null || wallpaperSizePx.width <= 0 || wallpaperSizePx.height <= 0) return
-    val painter = rememberAsyncImagePainter(
-        ImageRequest.Builder(LocalContext.current)
-            .data(model)
-            .size(wallpaperSizePx.width, wallpaperSizePx.height)
-            .build()
-    )
-    val dx  = (wallpaperOriginPx.x - panelOriginPx.x).toFloat()
-    val dy  = (wallpaperOriginPx.y - panelOriginPx.y).toFloat()
-    val wpW = wallpaperSizePx.width.toFloat()
-    val wpH = wallpaperSizePx.height.toFloat()
+    if (source == null || wallpaperSizePx.width <= 0 || wallpaperSizePx.height <= 0) return
+    val context = LocalContext.current
+    // Off the main thread: a user-picked wallpaper can be a 12MP photo, and even
+    // subsampled the decoder still reads the whole file.
+    val backdrop by produceState<ImageBitmap?>(null, source) {
+        value = withContext(Dispatchers.IO) { decodeBackdrop(context, source)?.asImageBitmap() }
+    }
+    val dx  = wallpaperOriginPx.x - panelOriginPx.x
+    val dy  = wallpaperOriginPx.y - panelOriginPx.y
+    val wpW = wallpaperSizePx.width
+    val wpH = wallpaperSizePx.height
 
     Box(
         Modifier.fillMaxSize().drawWithContent {
-            // isSpecified must be checked before touching width/height: Size
-            // is an inline value class whose accessors *throw* on
-            // Size.Unspecified rather than returning NaN, and the painter
-            // reports Unspecified until the image has loaded — which is every
-            // first frame after a cold start.
-            val isize = painter.intrinsicSize
-            val iw = if (isize.isSpecified) isize.width  else 0f
-            val ih = if (isize.isSpecified) isize.height else 0f
-            if (iw > 0f && ih > 0f && iw.isFinite() && ih.isFinite()) {
+            backdrop?.let { image ->
                 // Replicate ContentScale.Crop over the wallpaper's own rect, so
-                // the fragment under this panel is the same pixels the
+                // the fragment under this panel is the same region the
                 // fullscreen layer shows around it.
-                val scale = max(wpW / iw, wpH / ih)
-                val dw = iw * scale
-                val dh = ih * scale
-                translate(dx + (wpW - dw) / 2f, dy + (wpH - dh) / 2f) {
-                    with(painter) { draw(Size(dw, dh)) }
-                }
+                val scale = max(wpW.toFloat() / image.width, wpH.toFloat() / image.height)
+                val dw = (image.width * scale).roundToInt()
+                val dh = (image.height * scale).roundToInt()
+                drawImage(
+                    image     = image,
+                    dstOffset = IntOffset(dx + (wpW - dw) / 2, dy + (wpH - dh) / 2),
+                    dstSize   = IntSize(dw, dh)
+                )
             }
             drawContent()
         }
@@ -250,7 +313,7 @@ fun Sidebar(
     onShortcutSetIcon: (Int, DefaultShortcutIcon?) -> Unit,
     onReorder: (from: Int, to: Int) -> Unit,
     isHorizontal: Boolean = false,
-    wallpaperModel: Any? = null,
+    backdropSource: BackdropSource? = null,
     wallpaperOriginPx: IntOffset = IntOffset.Zero,
     wallpaperSizePx: IntSize = IntSize.Zero,
     modifier: Modifier = Modifier
@@ -390,7 +453,7 @@ fun Sidebar(
                 .glassRim(rimOn(sidebarBg, isDayMode), SIDEBAR_CORNER, FlushEdge.BOTTOM)
         ) {
             GlassBackdrop(
-                model             = wallpaperModel,
+                source            = backdropSource,
                 wallpaperOriginPx = wallpaperOriginPx,
                 wallpaperSizePx   = wallpaperSizePx,
                 dim               = settings.wallpaperDim,
@@ -469,7 +532,7 @@ fun Sidebar(
                 )
         ) {
         GlassBackdrop(
-            model             = wallpaperModel,
+            source            = backdropSource,
             wallpaperOriginPx = wallpaperOriginPx,
             wallpaperSizePx   = wallpaperSizePx,
             dim               = settings.wallpaperDim,

@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import com.openlauncher.app.data.DayNightMode
 import com.openlauncher.app.data.SidebarPosition
 import com.openlauncher.app.model.NavDestination
+import com.openlauncher.app.ui.components.BackdropSource
 import com.openlauncher.app.ui.components.Sidebar
 import com.openlauncher.app.ui.screen.*
 import com.openlauncher.app.ui.theme.OpenLauncherTheme
@@ -292,10 +293,20 @@ class MainActivity : ComponentActivity() {
                                     currentDest   = nav,
                                     settings      = settings,
                                     isHorizontal  = isBottomBar,
-                                    // Same model the fullscreen layer above uses, so
-                                    // the panel's backdrop is the same image —
-                                    // including a user-picked wallpaperUri.
-                                    wallpaperModel    = wallpaperModel,
+                                    // The sidebar shows a *blurred* copy of the same
+                                    // wallpaper. The built-ins ship a blurred twin;
+                                    // a user-picked one has none, so it gets
+                                    // blurred at decode time instead.
+                                    backdropSource    = if (settings.wallpaperUri.isNotEmpty()) {
+                                        BackdropSource.NeedsBlur(
+                                            android.net.Uri.parse(settings.wallpaperUri)
+                                        )
+                                    } else {
+                                        BackdropSource.PreBlurred(
+                                            if (isDayMode) R.drawable.open_light_blur
+                                            else           R.drawable.open_dark_blur
+                                        )
+                                    },
                                     wallpaperOriginPx = wallpaperOriginPx,
                                     wallpaperSizePx   = wallpaperSizePx,
                                     installedIconFor = { pkg ->
