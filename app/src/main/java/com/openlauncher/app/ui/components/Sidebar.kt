@@ -523,11 +523,10 @@ fun Sidebar(
             RoundedCornerShape(topStart = 0.dp, topEnd = SIDEBAR_CORNER, bottomEnd = SIDEBAR_CORNER, bottomStart = 0.dp)
         }
         BoxWithConstraints(modifier = modifier) {
-        // Inset proportionally (10% each side, i.e. 80% of the available
-        // height) rather than a fixed dp amount, so the bar reads as its own
-        // fixed, independent element noticeably shorter than the content it
-        // sits beside — not just another same-sized card — at any height.
-        val inset = maxHeight * 0.1f
+        // Match the main content's 10dp outer gap. MainActivity has already
+        // removed the shared status-bar strip from these constraints, so this
+        // gives both panels the same visible top and bottom edges.
+        val inset = 10.dp
         Box(
             modifier = Modifier
                 .padding(vertical = inset)

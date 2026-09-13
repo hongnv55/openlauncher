@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -642,25 +643,33 @@ private fun StandardMinimalPlayer(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-                // 25% dimming layer overlay
+                // Bottom-weighted scrim — keeps the art readable near the top
+                // while guaranteeing contrast for the title/controls resting
+                // on it at the bottom, instead of a single flat dim overlay.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.25f))
+                        .background(
+                            Brush.verticalGradient(
+                                0.0f to Color.Black.copy(alpha = 0.05f),
+                                0.45f to Color.Black.copy(alpha = 0.35f),
+                                1.0f to Color.Black.copy(alpha = 0.85f)
+                            )
+                        )
                 )
             }
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.Bottom
             ) {
-                // Track info (top — clickable to open app)
+                // Track info — bottom-anchored, right above the transport
+                // controls (clickable to open the source app)
                 Column(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier
-                        .padding(top = 16.dp)
                         .let { if (!isEditing) it.clickable { onTapToOpenApp() } else it }
                 ) {
                     Text(
@@ -669,7 +678,8 @@ private fun StandardMinimalPlayer(
                         color = currentTextColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        fontSize = 14.sp
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = nonNullState.artist.ifEmpty { stringResource(R.string.unknown_artist) },
@@ -681,8 +691,10 @@ private fun StandardMinimalPlayer(
                     )
                 }
 
-                // Progress + controls (bottom)
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Spacer(Modifier.height(10.dp))
+
+                // Progress + controls
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (durationMs > 0) {
                         LinearProgressIndicator(
                             progress = { (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) },
@@ -699,32 +711,34 @@ private fun StandardMinimalPlayer(
                         }
                     }
 
+                    // 48-56dp touch targets throughout, matching the rest of
+                    // the launcher's control sizing.
                     Row(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        IconButton(onClick = { if (!isEditing) onPrev() }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.SkipPrevious, stringResource(R.string.previous_track), tint = currentIconColor, modifier = Modifier.size(20.dp))
+                        IconButton(onClick = { if (!isEditing) onPrev() }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Default.SkipPrevious, stringResource(R.string.previous_track), tint = currentIconColor, modifier = Modifier.size(22.dp))
                         }
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(56.dp)
                                 .clip(CircleShape)
                                 .background(currentPlayBgColor)
                         ) {
-                            IconButton(onClick = { if (!isEditing) onPlayPause() }, modifier = Modifier.size(42.dp)) {
+                            IconButton(onClick = { if (!isEditing) onPlayPause() }, modifier = Modifier.size(56.dp)) {
                                 Icon(
                                     imageVector = if (nonNullState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                     contentDescription = stringResource(if (nonNullState.isPlaying) R.string.pause else R.string.play),
                                     tint = currentPlayIconColor,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
                         }
-                        IconButton(onClick = { if (!isEditing) onNext() }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.SkipNext, stringResource(R.string.next_track), tint = currentIconColor, modifier = Modifier.size(20.dp))
+                        IconButton(onClick = { if (!isEditing) onNext() }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Default.SkipNext, stringResource(R.string.next_track), tint = currentIconColor, modifier = Modifier.size(22.dp))
                         }
                     }
                 }

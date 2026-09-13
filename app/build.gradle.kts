@@ -15,8 +15,8 @@ android {
         applicationId  = "com.openlauncher.app"
         minSdk         = 21
         targetSdk      = 36
-        versionCode    = 10
-        versionName    = "0.0.9"
+        versionCode    = 11
+        versionName    = "1.0.0-beta"
         // Date only, deliberately not a timestamp: this value is baked into
         // BuildConfig, so a seconds-resolution one would invalidate it (and
         // everything downstream of it) on every single build.

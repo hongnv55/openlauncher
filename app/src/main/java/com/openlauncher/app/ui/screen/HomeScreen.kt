@@ -1,6 +1,5 @@
 package com.openlauncher.app.ui.screen
 
-import android.content.res.Configuration
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -25,11 +24,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -44,12 +44,19 @@ import com.openlauncher.app.data.GRID_ROWS
 import com.openlauncher.app.data.WidgetConfig
 import com.openlauncher.app.model.NowPlayingState
 import com.openlauncher.app.model.WeatherState
+import com.openlauncher.app.ui.components.DynamicIsland
 import com.openlauncher.app.ui.theme.LocalDayMode
 import com.openlauncher.app.ui.widget.*
 import java.util.Calendar
 import com.openlauncher.app.util.LocationData
 
 private val WIDGET_RADIUS = RoundedCornerShape(12.dp)
+
+// The status-bar/app-header row's own height. Shared with MainActivity,
+// which needs it too — to reconcile against the system status bar's height
+// (see HomeScreen's topInsetDp param) and to size the sidebar the same way —
+// so this is not private.
+val APP_HEADER_HEIGHT = 59.dp
 
 private data class WidgetTypeInfo(
     val id: String,
@@ -125,6 +132,7 @@ fun HomeScreen(
     onSetPipAppCount: (Int) -> Unit,
     onSwapPipApps: (dividerIndex: Int) -> Unit = {},
     onTapNowPlaying: () -> Unit,
+    onToggleDayNight: () -> Unit = {},
     onUpdateWidget: (id: String, spanX: Int, spanY: Int) -> Unit,
     onMoveWidget: (id: String, gridX: Int, gridY: Int) -> Unit,
     onAddWidget: (id: String) -> Unit,
@@ -142,6 +150,12 @@ fun HomeScreen(
     onRadioSwitchAm: () -> Unit = {},
     onRadioTune: (band: String, freq: Float) -> Unit = { _, _ -> },
     onAssignRadio: () -> Unit = {},
+    // The shared top strip's height — already reconciled by the caller as
+    // max(system-status-bar height, this screen's own header height), not
+    // their sum, since the (fully transparent) system bar can paint directly
+    // over whichever of the two is taller rather than stacking below it. The
+    // caller also uses this same value to size the sidebar, so both line up.
+    topInsetDp: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val accent       = Color(settings.accentColor)
@@ -158,81 +172,29 @@ fun HomeScreen(
     // Sits behind the embedded PIP surface rather than filling the screen, so
     // it does not occlude the wallpaper.
     val launcherBackground = Color.Black
-    val headerTextColor   = if (isDayMode) Color(0xFF111111) else accent
-    val statusIconColor   = if (isDayMode) Color(0xFF444444) else Color(0xFF666666)
+    // Was accent-colored back when this painted the vehicle-name text in the
+    // header; now it only labels the status-bar temperature, which reads as
+    // a plain readout rather than an accent-tinted one.
+    val headerTextColor   = if (isDayMode) Color(0xFF111111) else Color(0xFFF2F2F2)
+    // The head unit is 1920x720 at mdpi while its OEM status glyphs are drawn
+    // noticeably larger/brighter than phone defaults. Keep our compact 59dp strip but
+    // give its glyphs enough contrast to sit beside that system chrome.
+    val statusIconColor   = if (isDayMode) Color(0xFF3E4643) else Color(0xFFC2C8C5)
     val controlIconColor  = if (isDayMode) Color(0xFF666666) else Color(0xFF444444)
 
     var resizingId    by remember { mutableStateOf<String?>(null) }
     var contextMenuId by remember { mutableStateOf<String?>(null) }
 
-    val configuration    = LocalConfiguration.current
-    val isLandscape      = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     var editMode         by remember { mutableStateOf(false) }
     var widgetLibraryOpen by remember { mutableStateOf(false) }
 
-    Column(modifier = modifier.fillMaxSize()) {
-
-        // ── Header ──────────────────────────────────────────────────────────
-        if (!settings.hideAppHeader) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text          = settings.vehicleName.uppercase(),
-                    style         = MaterialTheme.typography.titleLarge,
-                    color         = headerTextColor,
-                    letterSpacing = 3.sp,
-                    fontSize      = 14.sp
-                )
-                Spacer(Modifier.weight(1f))
-                AnimatedVisibility(visible = isWifi, enter = fadeIn(), exit = fadeOut()) {
-                    Icon(Icons.Default.Wifi, stringResource(R.string.wifi), tint = statusIconColor, modifier = Modifier.size(16.dp))
-                }
-                if (isWifi) Spacer(Modifier.width(6.dp))
-                AnimatedVisibility(visible = isData, enter = fadeIn(), exit = fadeOut()) {
-                    Icon(Icons.Default.SignalCellularAlt, stringResource(R.string.mobile_data), tint = statusIconColor, modifier = Modifier.size(16.dp))
-                }
-                if (isLandscape) {
-                    Spacer(Modifier.width(8.dp))
-                    if (editMode) {
-                        IconButton(
-                            onClick  = { widgetLibraryOpen = true },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector        = Icons.Default.Dashboard,
-                                contentDescription = stringResource(R.string.widget_library),
-                                tint               = controlIconColor,
-                                modifier           = Modifier.size(15.dp)
-                            )
-                        }
-                        Spacer(Modifier.width(2.dp))
-                    }
-                    IconButton(
-                        onClick  = { editMode = !editMode },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector        = Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.edit_widgets),
-                            tint               = if (editMode) accent else controlIconColor,
-                            modifier           = Modifier.size(15.dp)
-                        )
-                    }
-                }
-            }
-
-            HorizontalDivider(color = if (isDayMode) Color(0xFFCCCCCC) else Color(0xFF141414))
-        }
+    Box(modifier = modifier.fillMaxSize()) {
 
         // ── Widget Grid ─────────────────────────────────────────────────────
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(top = topInsetDp)
                 .padding(gap)
         ) {
             val cellW = (maxWidth  - gap * (GRID_COLS - 1)) / GRID_COLS
@@ -530,6 +492,100 @@ fun HomeScreen(
                             .padding(start = 10.dp, top = 7.dp)
                     )
                 }
+            }
+        }
+
+        // ── Status bar ──────────────────────────────────────────────────────
+        // Left cluster: layout-edit toggle, day/night toggle, weather. Right
+        // cluster: connectivity. The clock/now-playing island floats centered
+        // over both, sized to its own content rather than sharing the Row.
+        // Drawn after (so on top of) the grid, and top-aligned within the
+        // shared max(system, app) strip reserved above — not stacked in front
+        // of it via normal flow layout, so a taller system bar never pushes
+        // this any lower than its own natural height.
+        if (!settings.hideAppHeader) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .height(APP_HEADER_HEIGHT)
+                    .padding(top = 3.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick  = { editMode = !editMode },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector        = Icons.Default.Edit,
+                            contentDescription = stringResource(R.string.edit_widgets),
+                            tint               = if (editMode) accent else statusIconColor,
+                            modifier           = Modifier.size(31.dp)
+                        )
+                    }
+                    if (editMode) {
+                        IconButton(
+                            onClick  = { widgetLibraryOpen = true },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector        = Icons.Default.Dashboard,
+                                contentDescription = stringResource(R.string.widget_library),
+                                tint               = statusIconColor,
+                                modifier           = Modifier.size(31.dp)
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick  = onToggleDayNight,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector        = if (isDayMode) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = stringResource(R.string.toggle_day_night),
+                            tint               = statusIconColor,
+                            modifier           = Modifier.size(31.dp)
+                        )
+                    }
+                    if (weather != null) {
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .width(1.dp)
+                                .height(26.dp)
+                                .background(if (isDayMode) Color(0x22111111) else Color(0x22FFFFFF))
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(text = weather.conditionIcon, fontSize = 33.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text       = weather.temperatureDisplay(settings.unitSystem.name == "METRIC"),
+                            color      = headerTextColor,
+                            fontSize   = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(Modifier.weight(1f))
+
+                    // Temporarily hidden: the OEM system bar already presents
+                    // Wi-Fi prominently in this same top-right region.
+                    AnimatedVisibility(visible = isData, enter = fadeIn(), exit = fadeOut()) {
+                        Icon(Icons.Default.SignalCellularAlt, stringResource(R.string.mobile_data), tint = statusIconColor, modifier = Modifier.size(29.dp))
+                    }
+                }
+
+                DynamicIsland(
+                    nowPlaying  = nowPlaying,
+                    accent      = accent,
+                    onPlayPause = onPlayPause,
+                    modifier    = Modifier.align(Alignment.Center)
+                )
             }
         }
     }

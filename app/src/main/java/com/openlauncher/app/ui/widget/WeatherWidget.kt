@@ -28,22 +28,22 @@ fun WeatherWidget(
     Box(modifier = modifier) {
         if (state != null) {
             Column(
-                modifier            = Modifier.fillMaxSize().padding(start = 14.dp, bottom = 14.dp),
+                modifier            = Modifier.fillMaxSize().padding(start = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.Bottom,
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
                     text     = state.conditionIcon,
-                    fontSize = 34.sp
+                    fontSize = 38.sp
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text       = state.temperatureDisplay(metric),
                     color      = contentColor,
-                    fontSize   = 32.sp,
-                    fontWeight = FontWeight.Light,
-                    letterSpacing = 1.sp
+                    fontSize   = 34.sp,
+                    fontWeight = FontWeight.Bold
                 )
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text          = stringResource(when (state.weatherCode) {
                         0 -> R.string.weather_clear
@@ -58,8 +58,9 @@ fun WeatherWidget(
                         else -> R.string.weather_unknown
                     }).uppercase(),
                     color         = subColor,
-                    fontSize      = 9.sp,
-                    letterSpacing = 1.sp
+                    fontSize      = 10.sp,
+                    fontWeight    = FontWeight.SemiBold,
+                    letterSpacing = 1.5.sp
                 )
             }
         }

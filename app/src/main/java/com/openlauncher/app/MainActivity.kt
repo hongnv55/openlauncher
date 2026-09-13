@@ -228,6 +228,13 @@ class MainActivity : ComponentActivity() {
                     )
                 } else {
                     val statusBarHeightDp = with(LocalDensity.current) { statusBarHeightPx().toDp() }
+                    // The app header and transparent system status bar share one
+                    // top strip instead of stacking. This is also the boundary
+                    // above the main content that the vertical sidebar aligns to.
+                    val topInsetDp = maxOf(
+                        if (!settings.hideAppHeader) APP_HEADER_HEIGHT else 0.dp,
+                        if (!settings.hideSystemStatusBar) statusBarHeightDp else 0.dp
+                    )
                     // The wallpaper layer's own window rect, in pixels. The sidebar
                     // needs it to place an aligned copy of the wallpaper behind its
                     // glass, and this cannot be derived in dp for two reasons: this
@@ -238,67 +245,75 @@ class MainActivity : ComponentActivity() {
                     // after one extra layout pass rather than looping.
                     var wallpaperOriginPx by remember { mutableStateOf(IntOffset.Zero) }
                     var wallpaperSizePx   by remember { mutableStateOf(IntSize.Zero) }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .onGloballyPositioned {
-                                wallpaperOriginPx = it.positionInWindow().round()
-                                wallpaperSizePx   = it.size
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Wallpaper layer — always true fullscreen, in both
+                        // dimensions, ignoring every bar toggle entirely. It
+                        // is the bottom-most layer of the whole screen; the
+                        // chrome layer below reserves its own space on top of
+                        // it, but the image itself never shrinks to make room.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .onGloballyPositioned {
+                                    wallpaperOriginPx = it.positionInWindow().round()
+                                    wallpaperSizePx   = it.size
+                                }
+                                // Base layer under the wallpaper. Only ever visible
+                                // if the wallpaper fails to decode, so it is a plain
+                                // black backstop rather than a themed fill.
+                                .background(Color.Black)
+                        ) {
+                            // Wallpaper layer. A wallpaper the user picked in Settings
+                            // wins; with no override we fall back to the built-in
+                            // asset for the current mode, so the launcher ships with
+                            // a wallpaper rather than a flat fill.
+                            //
+                            // ContentScale.Crop (centre crop) is what makes one asset
+                            // per mode enough: the images are 2670x1878 (1.42:1) but
+                            // get shown on everything from a phone to a 16:9 head
+                            // unit, so Crop scales to fill the shorter axis and trims
+                            // the overflow evenly off both sides, always keeping the
+                            // centre of the image. Fit would letterbox and FillBounds
+                            // would distort.
+                            //
+                            // Routed through Coil rather than painterResource because
+                            // Coil downsamples the decode to the layout size — decoded
+                            // at full resolution each of these is ~20MB of
+                            // ARGB_8888, and switching day/night would hold two.
+                            val wallpaperModel: Any = if (settings.wallpaperUri.isNotEmpty()) {
+                                android.net.Uri.parse(settings.wallpaperUri)
+                            } else {
+                                if (isDayMode) R.drawable.open_light else R.drawable.open_dark
                             }
-                            .padding(top = if (!settings.hideSystemStatusBar) statusBarHeightDp else 0.dp)
-                            // Conditional on our own setting, unlike the status
-                            // bar above — SYSTEM_UI_FLAG_LAYOUT_STABLE (always
-                            // on, so hiding a bar doesn't jar the layout size)
-                            // pins the nav bar's reported inset to its
-                            // bars-shown value even once it's genuinely
-                            // hidden (confirmed via dumpsys: Surface shown=
-                            // false, isVisible=false, yet the window still
-                            // reports a 60px inset) — so applying this
-                            // unconditionally left a permanent blank gutter
-                            // where the bar used to be, even after actually
-                            // hiding it. Gating on the setting matches what we
-                            // asked for instead of what got reported.
-                            .then(
-                                if (!settings.hideSystemNavBar)
-                                    Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-                                else Modifier
+                            AsyncImage(
+                                model              = wallpaperModel,
+                                contentDescription = null,
+                                contentScale       = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier           = Modifier.fillMaxSize()
                             )
-                            // Base layer under the wallpaper. Only ever visible
-                            // if the wallpaper fails to decode, so it is a plain
-                            // black backstop rather than a themed fill.
-                            .background(Color.Black)
-                    ) {
-                        // Wallpaper layer. A wallpaper the user picked in Settings
-                        // wins; with no override we fall back to the built-in
-                        // asset for the current mode, so the launcher ships with
-                        // a wallpaper rather than a flat fill.
-                        //
-                        // ContentScale.Crop (centre crop) is what makes one asset
-                        // per mode enough: the images are 2670x1878 (1.42:1) but
-                        // get shown on everything from a phone to a 16:9 head
-                        // unit, so Crop scales to fill the shorter axis and trims
-                        // the overflow evenly off both sides, always keeping the
-                        // centre of the image. Fit would letterbox and FillBounds
-                        // would distort.
-                        //
-                        // Routed through Coil rather than painterResource because
-                        // Coil downsamples the decode to the layout size — decoded
-                        // at full resolution each of these is ~20MB of
-                        // ARGB_8888, and switching day/night would hold two.
-                        val wallpaperModel: Any = if (settings.wallpaperUri.isNotEmpty()) {
-                            android.net.Uri.parse(settings.wallpaperUri)
-                        } else {
-                            if (isDayMode) R.drawable.open_light else R.drawable.open_dark
+                            Box(modifier = Modifier.fillMaxSize()
+                                .background(Color.Black.copy(alpha = settings.wallpaperDim)))
                         }
-                        AsyncImage(
-                            model              = wallpaperModel,
-                            contentDescription = null,
-                            contentScale       = androidx.compose.ui.layout.ContentScale.Crop,
-                            modifier           = Modifier.fillMaxSize()
-                        )
-                        Box(modifier = Modifier.fillMaxSize()
-                            .background(Color.Black.copy(alpha = settings.wallpaperDim)))
 
+                        // Chrome layer: sidebar + main content. The nav bar
+                        // (bottom) still reserves real space here. The top
+                        // status-bar/app-header strip is deliberately *not*
+                        // reserved at this level — HomeScreen reconciles both
+                        // bar heights itself (see topInsetDp
+                        // below) and takes the larger of the two rather than
+                        // their sum, since the system bar is fully
+                        // transparent and can paint directly over the same
+                        // shared strip instead of pushing content further
+                        // down.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (!settings.hideSystemNavBar)
+                                        Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                                    else Modifier
+                                )
+                        ) {
                         val isBottomBar    = settings.sidebarPosition == SidebarPosition.BOTTOM
 
                         val sidebarContent: @Composable () -> Unit = {
@@ -345,7 +360,8 @@ class MainActivity : ComponentActivity() {
                                     onShortcutLongPress  = { slot -> vm.startShortcutPicker(slot) },
                                     onShortcutRemove     = { slot -> vm.removeShortcut(slot) },
                                     onShortcutSetIcon    = { slot, icon -> vm.setShortcutIcon(slot, icon) },
-                                    onReorder            = { from, to -> vm.reorderShortcut(from, to) }
+                                    onReorder            = { from, to -> vm.reorderShortcut(from, to) },
+                                    modifier             = if (isBottomBar) Modifier else Modifier.padding(top = topInsetDp)
                                 )
                             }
                         }
@@ -380,6 +396,11 @@ class MainActivity : ComponentActivity() {
                                     val pkg = nowPlaying?.controller?.packageName
                                     if (!pkg.isNullOrEmpty()) vm.launchApp(pkg)
                                 },
+                                onToggleDayNight    = {
+                                    vm.updateSettings {
+                                        copy(dayNightMode = if (isDayMode) DayNightMode.DARK else DayNightMode.LIGHT)
+                                    }
+                                },
                                 onUpdateWidget      = { id, sx, sy -> vm.updateWidgetConfig(id, sx, sy) },
                                 onMoveWidget        = { id, gx, gy -> vm.moveWidgetConfig(id, gx, gy) },
                                 onAddWidget         = { id -> vm.addWidget(id) },
@@ -396,7 +417,8 @@ class MainActivity : ComponentActivity() {
                                 onRadioCycleFm        = { vm.radioCycleFm() },
                                 onRadioSwitchAm       = { vm.radioSwitchAm() },
                                 onRadioTune           = { band, freq -> vm.radioTune(band, freq) },
-                                onAssignRadio         = { vm.startRadioPicker() }
+                                onAssignRadio         = { vm.startRadioPicker() },
+                                topInsetDp             = topInsetDp
                             )
                         }
 
@@ -437,7 +459,8 @@ class MainActivity : ComponentActivity() {
                                         onAppClick          = { app -> vm.launchApp(app.packageName) },
                                         onPickerSelect      = { slot, app -> vm.assignShortcut(slot, app) },
                                         onCarPlaySelect     = { app -> vm.assignPickerApp(app) },
-                                        onToggleFavorite    = { pkg -> vm.toggleFavoriteApp(pkg) }
+                                        onToggleFavorite    = { pkg -> vm.toggleFavoriteApp(pkg) },
+                                        modifier            = Modifier.padding(top = topInsetDp)
                                     )
 
                                     NavDestination.SETTINGS -> SettingsScreen(
@@ -452,7 +475,8 @@ class MainActivity : ComponentActivity() {
                                             vm.startAutostartPicker(NavDestination.SETTINGS)
                                         },
                                         onReset  = { vm.resetSettings() },
-                                        onRestartLauncher = { restartLauncher() }
+                                        onRestartLauncher = { restartLauncher() },
+                                        modifier = Modifier.padding(top = topInsetDp)
                                     )
                                 }
                             }
@@ -483,6 +507,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+                        } // chrome layer Box
                     }
                 }
             }

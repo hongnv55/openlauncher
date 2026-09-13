@@ -93,27 +93,16 @@ fun paneOuterStroke(isDayMode: Boolean, accent: Color): Color =
     )
 
 /**
- * The drag grip on a PIP pane divider.
- *
- * Fixed per mode rather than borrowed from the sidebar's colour, which it used
- * to be: that colour is translucent glass tuned to sit over the wallpaper,
- * while this sits in the narrow gap between two panes and overlaps their edges,
- * so it composites against something else entirely and came out washed.
- *
- * The tone inverts with the mode because everything around the grip does. In
- * day mode the gap shows a bright wallpaper and the panes are [paneSurface]'s
- * near-white, so the grip goes dark; at night both are near-black, so it goes
- * light. That keeps it readable against the gap and both pane edges at once,
- * without depending on what an embedded app happens to draw beside it.
- *
- * Cool-tinted mid greys rather than black and white: the palette around it
- * (#202226, #08090A, #F7F8F9) is cool and desaturated, and hard #000/#FFF is
- * what makes a handle look dated. It is deliberately brighter than the
- * surrounding chrome at night — this is an affordance, not a surface, and
- * should read as the thing you grab.
+ * The drag grip's own capsule fill — a fixed dark chip regardless of mode,
+ * matching the Dynamic Island's always-black treatment (design ref:
+ * `design/Main.dc.html`'s divider-grip pill, `rgba(22,26,24,0.9)`). Unlike the
+ * old per-mode grey, this reads as one consistent floating affordance against
+ * either a light or dark pane, with its own border/shadow doing the
+ * separation work instead of tone-inverting. [isDayMode] is kept in the
+ * signature only so call sites don't need to change if a mode-aware tweak is
+ * ever reintroduced.
  */
-fun paneDividerGrip(isDayMode: Boolean): Color =
-    if (isDayMode) Color(0xFF6B7280) else Color(0xFFB6BCC6)
+fun paneDividerGrip(isDayMode: Boolean): Color = Color(0xE6161A18)
 
 /**
  * The complete content-card treatment in one call, so the call sites are

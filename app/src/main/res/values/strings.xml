@@ -204,6 +204,7 @@
     <string name="mobile_data">Mobile data</string>
     <string name="widget_library">Widget Library</string>
     <string name="edit_widgets">Edit widgets</string>
+    <string name="toggle_day_night">Toggle day/night mode</string>
     <string name="widget_clock">Clock</string>
     <string name="widget_weather">Weather</string>
     <string name="widget_now_playing">Now Playing</string>

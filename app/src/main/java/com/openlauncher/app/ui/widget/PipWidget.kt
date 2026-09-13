@@ -31,6 +31,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -47,7 +48,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -74,8 +74,8 @@ import kotlinx.coroutines.launch
 private val PANE_SPLIT_RANGE = 0.15f..0.85f
 private val DIVIDER_LAYOUT_WIDTH = 10.dp
 private val DIVIDER_TOUCH_WIDTH = 24.dp
-private val DIVIDER_GRIP_WIDTH = 14.dp
-private val DIVIDER_GRIP_HEIGHT = 64.dp
+private val DIVIDER_GRIP_WIDTH = 18.dp
+private val DIVIDER_GRIP_HEIGHT = 42.dp
 private const val DIVIDER_INPUT_SETTLE_MS = 180L
 private const val SECOND_PANE_LAUNCH_DELAY_MS = 1_500L
 private const val THIRD_PANE_LAUNCH_DELAY_MS = 3_000L
@@ -345,7 +345,7 @@ fun PipWidget(
                         .width(previewGripWidth)
                         .height(DIVIDER_GRIP_HEIGHT)
                         .clip(RoundedCornerShape(previewGripWidth / 2))
-                        .background(lerp(Color.White, accent, 0.15f))
+                        .background(paneDividerGrip(isDayMode))
                 )
             }
         }
@@ -411,11 +411,11 @@ private fun PaneDivider(
             },
         contentAlignment = Alignment.Center
     ) {
-        // Fill is a fixed per-mode tone (see paneDividerGrip) rather than the
-        // sidebar's colour: that one is translucent glass tuned for the
-        // wallpaper, and composited here over the pane gap it came out washed.
-        // No border — the shadow alone lifts it off whatever is underneath.
-        val gripShape = RoundedCornerShape(DIVIDER_GRIP_WIDTH / 2)
+        // Fixed dark floating pill (see paneDividerGrip) — a hairline border
+        // plus a top inner highlight sliver read as a lit glass edge, matching
+        // design/Main.dc.html's divider-grip pill exactly (18x42, rgba(22,26,
+        // 24,0.9) fill, 1px white-18% border, glowing accent dots).
+        val gripShape = RoundedCornerShape(50)
         Box(
             Modifier
                 .width(DIVIDER_GRIP_WIDTH)
@@ -423,10 +423,10 @@ private fun PaneDivider(
                 .then(
                     if (isDragging) Modifier
                     else Modifier.shadow(
-                        elevation   = 2.dp,
+                        elevation   = 8.dp,
                         shape       = gripShape,
-                        ambientColor = Color.Black.copy(alpha = 0.2f),
-                        spotColor    = Color.Black.copy(alpha = 0.2f)
+                        ambientColor = Color.Black.copy(alpha = 0.5f),
+                        spotColor    = Color.Black.copy(alpha = 0.5f)
                     )
                 )
                 .clip(gripShape)
@@ -434,7 +434,41 @@ private fun PaneDivider(
                     if (isDragging) SolidColor(Color.Transparent)
                     else SolidColor(gripColor)
                 )
-        )
+                .then(
+                    if (isDragging) Modifier
+                    else Modifier.border(1.dp, Color.White.copy(alpha = 0.18f), gripShape)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (!isDragging) {
+                // Inner top highlight — the inset box-shadow from the design,
+                // approximated as a thin lit sliver along the capsule's crown.
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(Color.White.copy(alpha = 0.12f))
+                )
+
+                // Three small glowing accent dots — a clearer "grab this"
+                // affordance than a plain filled capsule, and one that still
+                // reads over either a light or dark pane since the capsule
+                // fill itself is fixed rather than mode-adaptive.
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    repeat(3) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Box(
+                                Modifier
+                                    .size(4.dp)
+                                    .clip(CircleShape)
+                                    .background(accent)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

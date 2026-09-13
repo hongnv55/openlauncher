@@ -1,6 +1,5 @@
 package com.openlauncher.app.ui.widget
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,9 +12,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.res.stringResource
@@ -183,33 +179,15 @@ fun TripTrackerWidget(
             .padding(start = 14.dp, end = 14.dp, top = 22.dp, bottom = 8.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // 1. DYNAMIC MONOCHROME FLAT LCD PANEL
+        // 1. TRIP READOUT PANEL
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .background(lcdBg)
-                .border(1.dp, lcdBorder, RoundedCornerShape(6.dp))
-                .drawBehind {
-                    val dotColor = displayColor.copy(alpha = 0.02f)
-                    val dotSize = 1.dp.toPx()
-                    val gap = 5.dp.toPx()
-                    var x = 3.dp.toPx()
-                    while (x < size.width) {
-                        var y = 3.dp.toPx()
-                        while (y < size.height) {
-                            drawCircle(
-                                color = dotColor,
-                                radius = dotSize / 2,
-                                center = Offset(x, y)
-                            )
-                            y += gap
-                        }
-                        x += gap
-                    }
-                }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .border(1.dp, lcdBorder, RoundedCornerShape(14.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             if (activeMode == "TRIP") {
@@ -240,7 +218,7 @@ fun TripTrackerWidget(
                             )
                             Text(
                                 text = "%05.2f".format(distanceDisplay),
-                                color = displayColor,
+                                color = activeAccent,
                                 fontSize = 24.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
@@ -388,7 +366,7 @@ fun TripTrackerWidget(
                             )
                             Text(
                                 text = accelTimeDisplay,
-                                color = displayColor,
+                                color = activeAccent,
                                 fontSize = 24.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold
@@ -620,13 +598,13 @@ private fun TeTactileButton(
             letterSpacing = 0.5.sp
         )
 
-        // Flat, elegant minimalist circular keycap
+        // Rounded-square keycap, sized to the launcher's 48dp touch-target floor
         Box(
             modifier = Modifier
-                .size(30.dp)
-                .clip(CircleShape)
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
                 .background(buttonBg)
-                .border(1.dp, buttonBorder, CircleShape)
+                .border(1.dp, buttonBorder, RoundedCornerShape(14.dp))
                 .clickable(enabled = enabled) { onClick() },
             contentAlignment = Alignment.Center
         ) {
