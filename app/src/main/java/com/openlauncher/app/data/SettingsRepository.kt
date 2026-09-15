@@ -15,6 +15,10 @@ import java.io.IOException
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "launcher_settings")
 
+// Bump when defaultWidgetLayout()/GRID_COLS/GRID_ROWS change in a way that needs
+// migrating previously saved layouts — see SettingsRepository.migrateWidgetGridIfNeeded.
+private const val CURRENT_WIDGET_GRID_VERSION = 3
+
 class SettingsRepository(private val context: Context) {
 
     private val gson = Gson()
@@ -71,6 +75,59 @@ class SettingsRepository(private val context: Context) {
         val HIDE_APP_HEADER        = booleanPreferencesKey("hide_app_header")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
         val HIDE_SYSTEM_NAV_BAR    = booleanPreferencesKey("hide_system_nav_bar")
+        val WIDGET_GRID_VERSION    = intPreferencesKey("widget_grid_version")
+    }
+
+    /**
+     * One-time widget-layout migration, run once at startup rather than on every
+     * settings read — [readSettings] used to re-run this heuristic on every single
+     * emission, which meant any saved layout with every widget's gridX < 2 (true
+     * of a full-grid PIP resized to sit anywhere it still starts at column 0) kept
+     * getting silently reset back to the default full-grid layout right after being
+     * saved, because a resize can never be told apart from "still legacy format" by
+     * the heuristic alone. A persisted version number makes the migration idempotent.
+     */
+    suspend fun migrateWidgetGridIfNeeded() {
+        context.dataStore.edit { prefs ->
+            val version = prefs[Keys.WIDGET_GRID_VERSION] ?: 0
+            if (version >= CURRENT_WIDGET_GRID_VERSION) return@edit
+
+            val defaults   = AppSettings()
+            val widgetJson = prefs[Keys.WIDGET_LAYOUT_JSON]
+            var loaded = widgetJson?.let {
+                runCatching {
+                    gson.fromJson<List<WidgetConfig>>(it, object : TypeToken<List<WidgetConfig>>() {}.type)
+                }.getOrNull()
+            }
+            if (loaded != null) {
+                if (version < 2) {
+                    // Migrate: old 2×2 layout has no widget with gridX≥2 — replace with new 3×2 default
+                    val afterLegacyGridFix = if (loaded!!.none { it.gridX >= 2 }) defaults.widgetLayout else loaded!!
+                    // Migrate: a layout saved under the old 3×2 grid has every widget fitting
+                    // within its bounds — scale ×2 so widgets keep their exact on-screen size
+                    // and position on the 6×4 grid instead of shrinking into a corner.
+                    loaded = if (afterLegacyGridFix.all { it.gridX + it.spanX <= 3 && it.gridY + it.spanY <= 2 }) {
+                        afterLegacyGridFix.map {
+                            it.copy(gridX = it.gridX * 2, gridY = it.gridY * 2, spanX = it.spanX * 2, spanY = it.spanY * 2)
+                        }
+                    } else afterLegacyGridFix
+                }
+                if (version < 3) {
+                    // Migrate: 6×4 → 8×6 is not a clean integer multiple in either
+                    // axis, so rescale proportionally instead (position/size fraction
+                    // of the old grid preserved, not the raw cell count).
+                    loaded = loaded!!.map { w ->
+                        val newGridX = (w.gridX * 8 / 6).coerceIn(0, 7)
+                        val newGridY = (w.gridY * 6 / 4).coerceIn(0, 5)
+                        val newSpanX = (w.spanX * 8 / 6).coerceIn(1, 8 - newGridX)
+                        val newSpanY = (w.spanY * 6 / 4).coerceIn(1, 6 - newGridY)
+                        w.copy(gridX = newGridX, gridY = newGridY, spanX = newSpanX, spanY = newSpanY)
+                    }
+                }
+                prefs[Keys.WIDGET_LAYOUT_JSON] = gson.toJson(loaded)
+            }
+            prefs[Keys.WIDGET_GRID_VERSION] = CURRENT_WIDGET_GRID_VERSION
+        }
     }
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
@@ -97,8 +154,8 @@ class SettingsRepository(private val context: Context) {
                         object : TypeToken<List<WidgetConfig>>() {}.type
                     )
                 }.getOrNull() ?: defaults.widgetLayout
-                // Migrate: old 2×2 layout has no widget with gridX≥2 — replace with new 3×2 default
-                if (loaded.none { it.gridX >= 2 }) defaults.widgetLayout else loaded
+                // One-time format migrations run separately, see migrateWidgetGridIfNeeded()
+                loaded
             } else defaults.widgetLayout
 
             return AppSettings(

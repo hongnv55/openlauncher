@@ -737,7 +737,10 @@ internal class EmbeddedSurfaceView(context: Context) : SurfaceView(context) {
     var inputEnabled: Boolean = true
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!inputEnabled) return true
+        // Let the event fall through to the Compose Box wrapping this view
+        // (edit-mode tap/long-press/drag for resize & rearrange) instead of
+        // claiming the whole gesture with nothing to do with it.
+        if (!inputEnabled) return false
 
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             parent?.requestDisallowInterceptTouchEvent(true)

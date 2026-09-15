@@ -40,6 +40,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val settingsRepo = SettingsRepository(application)
     private val locationMgr  = LocationCompassManager(application)
 
+    init {
+        // One-time, versioned — see SettingsRepository.migrateWidgetGridIfNeeded
+        viewModelScope.launch { settingsRepo.migrateWidgetGridIfNeeded() }
+    }
+
     // ── Settings ──────────────────────────────────────────────────────────────
     private val _settingsLoaded = MutableStateFlow(false)
     val settingsLoaded: StateFlow<Boolean> = _settingsLoaded
@@ -261,21 +266,38 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         updateSettings {
             val activeIds = activeWidgetIds()
             var layout    = widgetLayout
-            var cell      = freeCellIn(layout, activeIds)
+            // Prefer the widget's default footprint (2×2); shrink the largest
+            // multi-cell active widget one span at a time, retrying at that
+            // footprint, before ever falling back to a bare 1×1 cell — otherwise
+            // a newly added widget can end up anchored at a cell that's only
+            // guaranteed free for 1×1 while still carrying a 2×2 span, so it
+            // silently overlaps whatever already occupies the rest of its area.
+            val defaultSpanX = com.openlauncher.app.data.WidgetConfig("", 0, 0).spanX
+            val defaultSpanY = com.openlauncher.app.data.WidgetConfig("", 0, 0).spanY
+            var newSpanX = defaultSpanX
+            var newSpanY = defaultSpanY
+            var cell      = freeAreaIn(layout, activeIds, newSpanX, newSpanY)
 
-            // If grid is full, shrink the largest multi-cell widget by one span to make room
-            if (cell == null) {
+            // If there's no room for the default footprint, shrink the largest
+            // multi-cell widget by one span at a time to make room, retrying.
+            while (cell == null) {
                 val candidate = layout
                     .filter { it.enabled && it.id in activeIds && it.spanX * it.spanY > 1 }
                     .maxByOrNull { it.spanX * it.spanY }
-                if (candidate != null) {
-                    layout = layout.map { w ->
-                        if (w.id == candidate.id)
-                            if (w.spanY > 1) w.copy(spanY = w.spanY - 1) else w.copy(spanX = w.spanX - 1)
-                        else w
-                    }
-                    cell = freeCellIn(layout, activeIds)
+                    ?: break
+                layout = layout.map { w ->
+                    if (w.id == candidate.id)
+                        if (w.spanY > 1) w.copy(spanY = w.spanY - 1) else w.copy(spanX = w.spanX - 1)
+                    else w
                 }
+                cell = freeAreaIn(layout, activeIds, newSpanX, newSpanY)
+            }
+
+            // Nothing can be freed for the default footprint — fall back to a bare 1×1 cell
+            if (cell == null) {
+                cell = freeCellIn(layout, activeIds)
+                newSpanX = 1
+                newSpanY = 1
             }
 
             val cell_ = cell ?: return@updateSettings this
@@ -297,14 +319,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val newLayout = if (idx >= 0) layout.toMutableList().also { list ->
                 val w = list[idx]
                 // Try to keep the widget's previous span; if no free area fits it,
-                // fall back to 1×1 at the free cell so it can't overlap neighbors
+                // fall back to whatever footprint we just secured (cell_/newSpan)
                 val area = if (w.spanX > 1 || w.spanY > 1) freeAreaIn(layout, activeIds, w.spanX, w.spanY) else null
                 list[idx] = if (area != null)
                     w.copy(enabled = true, gridX = area.first, gridY = area.second)
                 else
-                    w.copy(enabled = true, gridX = cell_.first, gridY = cell_.second, spanX = 1, spanY = 1)
+                    w.copy(enabled = true, gridX = cell_.first, gridY = cell_.second, spanX = newSpanX, spanY = newSpanY)
             } else {
-                layout + com.openlauncher.app.data.WidgetConfig(id, cell_.first, cell_.second)
+                layout + com.openlauncher.app.data.WidgetConfig(id, cell_.first, cell_.second, newSpanX, newSpanY)
             }
             withShow.copy(widgetLayout = newLayout)
         }

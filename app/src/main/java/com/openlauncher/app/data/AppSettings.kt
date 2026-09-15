@@ -53,15 +53,16 @@ data class ShortcutConfig(
     val customIconOverride: DefaultShortcutIcon? = null
 )
 
-const val GRID_COLS = 3
-const val GRID_ROWS = 2
+const val GRID_COLS = 8
+const val GRID_ROWS = 6
 
 data class WidgetConfig(
     val id: String,          // "CLOCK" | "WEATHER" | "TELEMETRY" | "NOW_PLAYING"
     val gridX: Int,          // column 0..(GRID_COLS-1)
     val gridY: Int,          // row    0..(GRID_ROWS-1)
-    val spanX: Int = 1,
-    val spanY: Int = 1,
+    // A newly added widget starts at 2×2 rather than a barely-legible 1×1 sliver.
+    val spanX: Int = 2,
+    val spanY: Int = 2,
     val enabled: Boolean = true
 )
 

@@ -2,11 +2,13 @@ package com.openlauncher.app.ui.screen
 
 import android.content.res.Configuration
 import androidx.compose.animation.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -21,8 +23,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,6 +55,8 @@ import java.util.Calendar
 import com.openlauncher.app.util.LocationData
 
 private val WIDGET_RADIUS = RoundedCornerShape(12.dp)
+
+private enum class ResizeEdge { RIGHT, BOTTOM, CORNER }
 
 private data class WidgetTypeInfo(
     val id: String,
@@ -266,6 +273,11 @@ fun HomeScreen(
             var draggingId   by remember { mutableStateOf<String?>(null) }
             var dragOffsetPx by remember { mutableStateOf(Offset.Zero) }
 
+            // ── Edge-resize state (drag a widget's own handles instead of the dialog) ──
+            var resizeDragId       by remember { mutableStateOf<String?>(null) }
+            var resizeDragOffsetPx by remember { mutableStateOf(Offset.Zero) }
+            var resizeDragEdge     by remember { mutableStateOf<ResizeEdge?>(null) }
+
             // Compute snap target for the widget being dragged (uses original spanX)
             val draggingOriginal = if (draggingId != null) visible.find { it.id == draggingId } else null
             val targetGridX = draggingOriginal?.let {
@@ -279,6 +291,56 @@ fun HomeScreen(
             val proposedLayout = if (draggingOriginal != null && targetGridX != null && targetGridY != null)
                 computeWidgetMove(visible, draggingOriginal.id, targetGridX, targetGridY)
             else null
+
+            // Live target span for whichever widget is being edge-resized
+            val resizingOriginal = if (resizeDragId != null) visible.find { it.id == resizeDragId } else null
+            val liveResizeSpanX = resizingOriginal?.let {
+                val deltaCells = if (resizeDragEdge == ResizeEdge.BOTTOM) 0
+                    else (resizeDragOffsetPx.x / cellStepXPx).roundToInt()
+                (it.spanX + deltaCells).coerceIn(1, GRID_COLS - it.gridX)
+            }
+            val liveResizeSpanY = resizingOriginal?.let {
+                val deltaCells = if (resizeDragEdge == ResizeEdge.RIGHT) 0
+                    else (resizeDragOffsetPx.y / cellStepYPx).roundToInt()
+                (it.spanY + deltaCells).coerceIn(1, GRID_ROWS - it.gridY)
+            }
+
+            // Grid overlay — shows every cell while dragging/resizing so the
+            // user can see exactly where a widget will land or how big it'll be
+            if (draggingId != null || resizeDragId != null) {
+                val cellWPx  = with(density) { cellW.toPx() }
+                val cellHPx  = with(density) { cellH.toPx() }
+                val stepXPx  = cellStepXPx
+                val stepYPx  = cellStepYPx
+                val cornerPx = with(density) { 12.dp.toPx() }
+                val strokePx = with(density) { 1.dp.toPx() }
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    for (r in 0 until GRID_ROWS) for (c in 0 until GRID_COLS) {
+                        drawRoundRect(
+                            color      = Color.White.copy(alpha = 0.10f),
+                            topLeft    = Offset(stepXPx * c, stepYPx * r),
+                            size       = Size(cellWPx, cellHPx),
+                            cornerRadius = CornerRadius(cornerPx),
+                            style      = Stroke(width = strokePx)
+                        )
+                    }
+                }
+            }
+
+            // Resize ghost — target footprint while dragging an edge/corner handle
+            if (resizingOriginal != null && liveResizeSpanX != null && liveResizeSpanY != null) {
+                val rX = (cellW + gap) * resizingOriginal.gridX
+                val rY = (cellH + gap) * resizingOriginal.gridY
+                val rW = cellW * liveResizeSpanX + gap * (liveResizeSpanX - 1)
+                val rH = cellH * liveResizeSpanY + gap * (liveResizeSpanY - 1)
+                Box(
+                    modifier = Modifier
+                        .absoluteOffset(x = rX, y = rY)
+                        .size(rW, rH)
+                        .background(accent.copy(alpha = 0.08f))
+                        .border(1.dp, accent.copy(alpha = 0.5f), WIDGET_RADIUS)
+                )
+            }
 
             // Drop ghost — rendered before widgets so it appears beneath them
             if (draggingOriginal != null && targetGridX != null && targetGridY != null) {
@@ -317,6 +379,16 @@ fun HomeScreen(
             }
 
             rendered.forEach { w ->
+              // Without an explicit key, Compose tracks each item by its
+              // position in this forEach rather than by widget id. If the
+              // underlying list order changes between recompositions (e.g.
+              // after a move/resize re-sorts widgetLayout), a Box — along with
+              // its remembered pointerInput/gesture state — can get silently
+              // reused for a DIFFERENT widget than the one it was built for.
+              // That's exactly how dragging WEATHER's resize handle could end
+              // up mutating NOW_PLAYING: the handle's onDragEnd closure still
+              // captured the widget that used to occupy this slot.
+              key(w.id) {
                 val xOff   = (cellW + gap) * w.gridX
                 val yOff   = (cellH + gap) * w.gridY
                 val width  = cellW * w.spanX + gap * (w.spanX - 1)
@@ -529,7 +601,64 @@ fun HomeScreen(
                             .align(Alignment.TopStart)
                             .padding(start = 10.dp, top = 7.dp)
                     )
+
+                    // Edge/corner resize handles — drag directly instead of the +/- dialog
+                    if (editMode && !isDragging) {
+                        fun commitResize(dx: Boolean, dy: Boolean) {
+                            val newSpanX = if (dx)
+                                (w.spanX + (resizeDragOffsetPx.x / cellStepXPx).roundToInt())
+                                    .coerceIn(1, GRID_COLS - w.gridX)
+                            else w.spanX
+                            val newSpanY = if (dy)
+                                (w.spanY + (resizeDragOffsetPx.y / cellStepYPx).roundToInt())
+                                    .coerceIn(1, GRID_ROWS - w.gridY)
+                            else w.spanY
+                            android.util.Log.d(
+                                "WidgetResize",
+                                "commit id=${w.id} activeDragId=$resizeDragId edge=$resizeDragEdge " +
+                                    "from=(${w.spanX},${w.spanY}) to=($newSpanX,$newSpanY) offsetPx=$resizeDragOffsetPx"
+                            )
+                            onUpdateWidget(w.id, newSpanX, newSpanY)
+                            resizeDragId     = null
+                            resizeDragOffsetPx = Offset.Zero
+                            resizeDragEdge   = null
+                        }
+                        ResizeHandle(
+                            edge     = ResizeEdge.RIGHT,
+                            accent   = accent,
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            onDragStart = {
+                                android.util.Log.d("WidgetResize", "start id=${w.id} edge=RIGHT")
+                                resizeDragId = w.id; resizeDragOffsetPx = Offset.Zero; resizeDragEdge = ResizeEdge.RIGHT
+                            },
+                            onDrag      = { resizeDragOffsetPx += it },
+                            onDragEnd   = { commitResize(dx = true, dy = false) }
+                        )
+                        ResizeHandle(
+                            edge     = ResizeEdge.BOTTOM,
+                            accent   = accent,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                            onDragStart = {
+                                android.util.Log.d("WidgetResize", "start id=${w.id} edge=BOTTOM")
+                                resizeDragId = w.id; resizeDragOffsetPx = Offset.Zero; resizeDragEdge = ResizeEdge.BOTTOM
+                            },
+                            onDrag      = { resizeDragOffsetPx += it },
+                            onDragEnd   = { commitResize(dx = false, dy = true) }
+                        )
+                        ResizeHandle(
+                            edge     = ResizeEdge.CORNER,
+                            accent   = accent,
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            onDragStart = {
+                                android.util.Log.d("WidgetResize", "start id=${w.id} edge=CORNER")
+                                resizeDragId = w.id; resizeDragOffsetPx = Offset.Zero; resizeDragEdge = ResizeEdge.CORNER
+                            },
+                            onDrag      = { resizeDragOffsetPx += it },
+                            onDragEnd   = { commitResize(dx = true, dy = true) }
+                        )
+                    }
                 }
+              }
             }
         }
     }
@@ -781,6 +910,64 @@ private fun ContextRow(
     ) {
         Icon(icon, null, tint = finalTint, modifier = Modifier.size(16.dp))
         Text(label, color = finalTint, fontSize = 10.sp, letterSpacing = 1.sp)
+    }
+}
+
+/** A small drag grip on a widget's edge/corner, for direct resize-by-drag in edit mode. */
+@Composable
+private fun ResizeHandle(
+    edge: ResizeEdge,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    val gripColor = accent.copy(alpha = 0.75f)
+    val hitTarget = modifier
+        .pointerInput(edge) {
+            detectDragGestures(
+                onDragStart = { onDragStart() },
+                onDrag      = { change, dragAmount -> change.consume(); onDrag(dragAmount) },
+                onDragEnd   = { onDragEnd() },
+                onDragCancel = { onDragEnd() }
+            )
+        }
+    when (edge) {
+        ResizeEdge.RIGHT -> Box(
+            modifier = hitTarget.size(width = 24.dp, height = 44.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                Modifier
+                    .size(width = 4.dp, height = 28.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(gripColor)
+            )
+        }
+        ResizeEdge.BOTTOM -> Box(
+            modifier = hitTarget.size(width = 44.dp, height = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                Modifier
+                    .size(width = 28.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(gripColor)
+            )
+        }
+        ResizeEdge.CORNER -> Box(
+            modifier = hitTarget.size(28.dp).padding(4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                Modifier
+                    .size(11.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(gripColor)
+                    .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(3.dp))
+            )
+        }
     }
 }
 
