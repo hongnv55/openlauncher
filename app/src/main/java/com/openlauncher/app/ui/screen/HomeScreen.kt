@@ -579,14 +579,20 @@ fun HomeScreen(
                         Icon(Icons.Default.SignalCellularAlt, stringResource(R.string.mobile_data), tint = statusIconColor, modifier = Modifier.size(29.dp))
                     }
                 }
-
-                DynamicIsland(
-                    nowPlaying  = nowPlaying,
-                    accent      = accent,
-                    onPlayPause = onPlayPause,
-                    modifier    = Modifier.align(Alignment.Center)
-                )
             }
+
+            // Sibling of the icon-row Box above, not nested inside it — that
+            // Box's own top padding is a nudge for its icon row only, and
+            // stacking this island's padding on top of it would put more
+            // space above the island than the `gap` main content keeps below
+            // the status-bar strip. Aligning against this outer Box directly
+            // keeps the two spacings equal.
+            DynamicIsland(
+                nowPlaying  = nowPlaying,
+                accent      = accent,
+                onPlayPause = onPlayPause,
+                modifier    = Modifier.align(Alignment.TopCenter).padding(top = gap)
+            )
         }
     }
 

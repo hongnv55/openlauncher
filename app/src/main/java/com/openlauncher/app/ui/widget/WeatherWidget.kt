@@ -40,7 +40,10 @@ fun WeatherWidget(
                 Text(
                     text       = state.temperatureDisplay(metric),
                     color      = contentColor,
-                    fontSize   = 34.sp,
+                    // Matches the Dynamic Island's clock text size (20.sp) —
+                    // the two headline numbers on the home screen read as one
+                    // consistent scale rather than the weather one dominating.
+                    fontSize   = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(2.dp))

@@ -31,7 +31,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -60,11 +59,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
-import com.openlauncher.app.ui.theme.PaneBorderWidth
 import com.openlauncher.app.R
-import com.openlauncher.app.ui.theme.paneDividerGrip
 import com.openlauncher.app.ui.theme.PaneShape
-import com.openlauncher.app.ui.theme.paneOuterStroke
+import com.openlauncher.app.ui.theme.paneDividerGrip
 import com.openlauncher.app.ui.theme.paneSurface
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Job
@@ -74,73 +71,68 @@ import kotlinx.coroutines.launch
 private val PANE_SPLIT_RANGE = 0.15f..0.85f
 private val DIVIDER_LAYOUT_WIDTH = 10.dp
 private val DIVIDER_TOUCH_WIDTH = 24.dp
-private val DIVIDER_GRIP_WIDTH = 18.dp
-private val DIVIDER_GRIP_HEIGHT = 42.dp
+private val DIVIDER_GRIP_WIDTH = 4.dp
+private val DIVIDER_GRIP_HEIGHT = 80.dp
 private const val DIVIDER_INPUT_SETTLE_MS = 180L
 private const val SECOND_PANE_LAUNCH_DELAY_MS = 1_500L
 private const val THIRD_PANE_LAUNCH_DELAY_MS = 3_000L
 private const val APP_REVEAL_DELAY_MS = 1_200L
 
 /**
- * [appCount] 1, 2, or 3 apps side-by-side. With 2, panes are split at
- * [splitFraction] (fraction of the pane area, excluding the divider, given to
- * the first visual position). With 3, a second divider further splits
- * whatever's left over at [splitFraction2] (fraction of the *remaining* area
- * given to the second visual position — the third gets what's left). Drag
- * either divider to resize; tap one to swap its two adjacent panes'
- * positions. [paneOrder] maps visual position -> slot index (default
- * `[0, 1, 2]`, i.e. slot N renders in position N); each slot is
- * independently assignable/clearable regardless of where it currently
- * displays.
+ * [appCount] 1, 2, or 3 apps side-by-side. With 2, panes are split at [splitFraction] (fraction of
+ * the pane area, excluding the divider, given to the first visual position). With 3, a second
+ * divider further splits whatever's left over at [splitFraction2] (fraction of the *remaining* area
+ * given to the second visual position — the third gets what's left). Drag either divider to resize;
+ * tap one to swap its two adjacent panes' positions. [paneOrder] maps visual position -> slot index
+ * (default `[0, 1, 2]`, i.e. slot N renders in position N); each slot is independently
+ * assignable/clearable regardless of where it currently displays.
  *
- * Apps render via true embedding — a private [VirtualDisplay] piped into a
- * plain [SurfaceView] inside this same view hierarchy — matching how the
- * commercial "lecoauto" launcher does the identical feature (confirmed live,
- * via dumpsys, on our own test device: both embedded apps show up as
- * `mWindowingMode=fullscreen` on their own small virtual display, not
- * freeform). Because the embedded app is just a normal View clipped to
- * whatever bounds Compose gives it — not a separate top-level window —
- * there's no caption to mask, no window-overlap or drag-lock problem.
+ * Apps render via true embedding — a private [VirtualDisplay] piped into a plain [SurfaceView]
+ * inside this same view hierarchy — matching how the commercial "lecoauto" launcher does the
+ * identical feature (confirmed live, via dumpsys, on our own test device: both embedded apps show
+ * up as `mWindowingMode=fullscreen` on their own small virtual display, not freeform). Because the
+ * embedded app is just a normal View clipped to whatever bounds Compose gives it — not a separate
+ * top-level window — there's no caption to mask, no window-overlap or drag-lock problem.
  *
- * Requires UID 1000 (sharedUserId="android.uid.system", platform-signed).
- * On API 27/28 the target stack is explicitly moved to the VirtualDisplay,
- * matching LeCoAuto without depending on the secondary-display feature flag.
+ * Requires UID 1000 (sharedUserId="android.uid.system", platform-signed). On API 27/28 the target
+ * stack is explicitly moved to the VirtualDisplay, matching LeCoAuto without depending on the
+ * secondary-display feature flag.
  *
- * Placement, ActivityView-style pointer forwarding, and debounced dual-pane
- * resize are verified on API 28 for the probe app, Maps, and YouTube. Focus,
- * back routing, and task lifecycle remain separate release-hardening work.
+ * Placement, ActivityView-style pointer forwarding, and debounced dual-pane resize are verified on
+ * API 28 for the probe app, Maps, and YouTube. Focus, back routing, and task lifecycle remain
+ * separate release-hardening work.
  */
 @Composable
 fun PipWidget(
-    packageNames: List<String>,
-    appCount: Int,
-    splitFraction: Float,
-    splitFraction2: Float = 0.5f,
-    accent: Color,
-    launcherBackground: Color = Color.Black,
-    isDayMode: Boolean,
-    isActive: Boolean = true,
-    isEditing: Boolean,
-    onAssign: (slot: Int) -> Unit,
-    onSplitChange: (Float) -> Unit,
-    onSplitChange2: (Float) -> Unit = {},
-    onSwap: (dividerIndex: Int) -> Unit = {},
-    paneOrder: List<Int> = listOf(0, 1, 2),
-    modifier: Modifier = Modifier
+        packageNames: List<String>,
+        appCount: Int,
+        splitFraction: Float,
+        splitFraction2: Float = 0.5f,
+        accent: Color,
+        launcherBackground: Color = Color.Black,
+        isDayMode: Boolean,
+        isActive: Boolean = true,
+        isEditing: Boolean,
+        onAssign: (slot: Int) -> Unit,
+        onSplitChange: (Float) -> Unit,
+        onSplitChange2: (Float) -> Unit = {},
+        onSwap: (dividerIndex: Int) -> Unit = {},
+        paneOrder: List<Int> = listOf(0, 1, 2),
+        modifier: Modifier = Modifier
 ) {
     val pkg0 = packageNames.getOrElse(0) { "" }
 
     if (appCount <= 1) {
         Box(modifier) {
             PipPane(
-                packageName = pkg0,
-                inputEnabled = isActive && !isEditing,
-                accent = accent,
-                isDayMode = isDayMode,
-                isEditing = isEditing,
-                launchDelayMs = 0L,
-                onAssign = { onAssign(0) },
-                modifier = Modifier.fillMaxSize()
+                    packageName = pkg0,
+                    inputEnabled = isActive && !isEditing,
+                    accent = accent,
+                    isDayMode = isDayMode,
+                    isEditing = isEditing,
+                    launchDelayMs = 0L,
+                    onAssign = { onAssign(0) },
+                    modifier = Modifier.fillMaxSize()
             )
         }
         return
@@ -187,10 +179,11 @@ fun PipWidget(
 
     fun endDrag() {
         previewFraction = null
-        unlockInputJob = coroutineScope.launch {
-            delay(DIVIDER_INPUT_SETTLE_MS)
-            paneInputLocked = false
-        }
+        unlockInputJob =
+                coroutineScope.launch {
+                    delay(DIVIDER_INPUT_SETTLE_MS)
+                    paneInputLocked = false
+                }
     }
 
     BoxWithConstraints(modifier = modifier) {
@@ -234,97 +227,90 @@ fun PipWidget(
             val pos1 = positionOf(1)
 
             PipPane(
-                packageName = pkg0,
-                inputEnabled = isActive && !isEditing && !paneInputLocked,
-                accent = accent,
-                isDayMode = isDayMode,
-                isEditing = isEditing,
-                launchDelayMs = 0L,
-                onAssign = { onAssign(0) },
-                modifier = Modifier
-                    .offset(x = positionOffsets[pos0])
-                    .width(positionWidths[pos0])
-                    .fillMaxHeight()
-            )
-            PipPane(
-                packageName = pkg1,
-                inputEnabled = isActive && !isEditing && !paneInputLocked,
-                accent = accent,
-                isDayMode = isDayMode,
-                isEditing = isEditing,
-                launchDelayMs = SECOND_PANE_LAUNCH_DELAY_MS,
-                onAssign = { onAssign(1) },
-                modifier = Modifier
-                    .offset(x = positionOffsets[pos1])
-                    .width(positionWidths[pos1])
-                    .fillMaxHeight()
-            )
-            if (showThird) {
-                val pos2 = positionOf(2)
-                PipPane(
-                    packageName = pkg2,
+                    packageName = pkg0,
                     inputEnabled = isActive && !isEditing && !paneInputLocked,
                     accent = accent,
                     isDayMode = isDayMode,
                     isEditing = isEditing,
-                    launchDelayMs = THIRD_PANE_LAUNCH_DELAY_MS,
-                    onAssign = { onAssign(2) },
-                    modifier = Modifier
-                        .offset(x = positionOffsets[pos2])
-                        .width(positionWidths[pos2])
-                        .fillMaxHeight()
+                    launchDelayMs = 0L,
+                    onAssign = { onAssign(0) },
+                    modifier =
+                            Modifier.offset(x = positionOffsets[pos0])
+                                    .width(positionWidths[pos0])
+                                    .fillMaxHeight()
+            )
+            PipPane(
+                    packageName = pkg1,
+                    inputEnabled = isActive && !isEditing && !paneInputLocked,
+                    accent = accent,
+                    isDayMode = isDayMode,
+                    isEditing = isEditing,
+                    launchDelayMs = SECOND_PANE_LAUNCH_DELAY_MS,
+                    onAssign = { onAssign(1) },
+                    modifier =
+                            Modifier.offset(x = positionOffsets[pos1])
+                                    .width(positionWidths[pos1])
+                                    .fillMaxHeight()
+            )
+            if (showThird) {
+                val pos2 = positionOf(2)
+                PipPane(
+                        packageName = pkg2,
+                        inputEnabled = isActive && !isEditing && !paneInputLocked,
+                        accent = accent,
+                        isDayMode = isDayMode,
+                        isEditing = isEditing,
+                        launchDelayMs = THIRD_PANE_LAUNCH_DELAY_MS,
+                        onAssign = { onAssign(2) },
+                        modifier =
+                                Modifier.offset(x = positionOffsets[pos2])
+                                        .width(positionWidths[pos2])
+                                        .fillMaxHeight()
                 )
             }
 
             // Gap fillers — purely visual placeholders, matching the touch
             // boxes below in position, no content of their own.
-            Box(
-                modifier = Modifier
-                    .offset(x = width0)
-                    .width(DIVIDER_LAYOUT_WIDTH)
-                    .fillMaxHeight()
-            )
+            Box(modifier = Modifier.offset(x = width0).width(DIVIDER_LAYOUT_WIDTH).fillMaxHeight())
             if (showThird) {
                 Box(
-                    modifier = Modifier
-                        .offset(x = width0 + DIVIDER_LAYOUT_WIDTH + width1)
-                        .width(DIVIDER_LAYOUT_WIDTH)
-                        .fillMaxHeight()
+                        modifier =
+                                Modifier.offset(x = width0 + DIVIDER_LAYOUT_WIDTH + width1)
+                                        .width(DIVIDER_LAYOUT_WIDTH)
+                                        .fillMaxHeight()
                 )
             }
 
             PaneDivider(
-                gapStartX = width0,
-                committedFraction = fraction1,
-                referenceWidthPx = paneAreaWidthPx,
-                isDragging = previewFraction != null && previewDividerIndex == 0,
-                onDragStart = { beginDrag(0, fraction1) },
-                onPreviewChange = { previewFraction = it },
-                onCommit = { committed ->
-                    localCommittedFraction = committed
-                    onSplitChange(committed)
-                },
-                onDragEnd = ::endDrag,
-                onTap = { onSwap(0) },
-                accent = accent,
-                gripColor = paneDividerGrip(isDayMode)
+                    gapStartX = width0,
+                    committedFraction = fraction1,
+                    referenceWidthPx = paneAreaWidthPx,
+                    isDragging = previewFraction != null && previewDividerIndex == 0,
+                    onDragStart = { beginDrag(0, fraction1) },
+                    onPreviewChange = { previewFraction = it },
+                    onCommit = { committed ->
+                        localCommittedFraction = committed
+                        onSplitChange(committed)
+                    },
+                    onDragEnd = ::endDrag,
+                    onTap = { onSwap(0) },
+                    gripColor = paneDividerGrip(isDayMode)
             )
             if (showThird) {
                 PaneDivider(
-                    gapStartX = width0 + DIVIDER_LAYOUT_WIDTH + width1,
-                    committedFraction = fraction2,
-                    referenceWidthPx = remainingAfter0Px,
-                    isDragging = previewFraction != null && previewDividerIndex == 1,
-                    onDragStart = { beginDrag(1, fraction2) },
-                    onPreviewChange = { previewFraction = it },
-                    onCommit = { committed ->
-                        localCommittedFraction2 = committed
-                        onSplitChange2(committed)
-                    },
-                    onDragEnd = ::endDrag,
-                    onTap = { onSwap(1) },
-                    accent = accent,
-                    gripColor = paneDividerGrip(isDayMode)
+                        gapStartX = width0 + DIVIDER_LAYOUT_WIDTH + width1,
+                        committedFraction = fraction2,
+                        referenceWidthPx = remainingAfter0Px,
+                        isDragging = previewFraction != null && previewDividerIndex == 1,
+                        onDragStart = { beginDrag(1, fraction2) },
+                        onPreviewChange = { previewFraction = it },
+                        onCommit = { committed ->
+                            localCommittedFraction2 = committed
+                            onSplitChange2(committed)
+                        },
+                        onDragEnd = ::endDrag,
+                        onTap = { onSwap(1) },
+                        gripColor = paneDividerGrip(isDayMode)
                 )
             }
 
@@ -335,17 +321,18 @@ fun PipWidget(
             previewFraction?.let { preview ->
                 val previewGripWidth = DIVIDER_GRIP_WIDTH
                 val previewBase = if (previewDividerIndex == 0) 0.dp else offset1
-                val previewAreaWidth = if (previewDividerIndex == 0) paneAreaWidth else remainingAfter0
-                val previewOffsetX = previewBase + previewAreaWidth * preview +
-                    DIVIDER_LAYOUT_WIDTH / 2 - previewGripWidth / 2
+                val previewAreaWidth =
+                        if (previewDividerIndex == 0) paneAreaWidth else remainingAfter0
+                val previewOffsetX =
+                        previewBase + previewAreaWidth * preview + DIVIDER_LAYOUT_WIDTH / 2 -
+                                previewGripWidth / 2
                 Box(
-                    Modifier
-                        .offset(x = previewOffsetX)
-                        .align(Alignment.CenterStart)
-                        .width(previewGripWidth)
-                        .height(DIVIDER_GRIP_HEIGHT)
-                        .clip(RoundedCornerShape(previewGripWidth / 2))
-                        .background(paneDividerGrip(isDayMode))
+                        Modifier.offset(x = previewOffsetX)
+                                .align(Alignment.CenterStart)
+                                .width(previewGripWidth)
+                                .height(DIVIDER_GRIP_HEIGHT)
+                                .clip(RoundedCornerShape(previewGripWidth / 2))
+                                .background(paneDividerGrip(isDayMode))
                 )
             }
         }
@@ -354,201 +341,194 @@ fun PipWidget(
 
 @Composable
 private fun PaneDivider(
-    gapStartX: Dp,
-    committedFraction: Float,
-    referenceWidthPx: Float,
-    isDragging: Boolean,
-    onDragStart: () -> Unit,
-    onPreviewChange: (Float?) -> Unit,
-    onCommit: (Float) -> Unit,
-    onDragEnd: () -> Unit,
-    onTap: () -> Unit,
-    accent: Color,
-    gripColor: Color
+        gapStartX: Dp,
+        committedFraction: Float,
+        referenceWidthPx: Float,
+        isDragging: Boolean,
+        onDragStart: () -> Unit,
+        onPreviewChange: (Float?) -> Unit,
+        onCommit: (Float) -> Unit,
+        onDragEnd: () -> Unit,
+        onTap: () -> Unit,
+        gripColor: Color
 ) {
     Box(
-        modifier = Modifier
-            .offset(x = gapStartX + DIVIDER_LAYOUT_WIDTH / 2 - DIVIDER_TOUCH_WIDTH / 2)
-            .width(DIVIDER_TOUCH_WIDTH)
-            .fillMaxHeight()
-            .pointerInput(referenceWidthPx, committedFraction) {
-                var dragStartFraction = committedFraction
-                var totalDragPx = 0f
-                detectDragGestures(
-                    onDragStart = {
-                        dragStartFraction = committedFraction
-                        totalDragPx = 0f
-                        onDragStart()
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        if (referenceWidthPx > 0f) {
-                            totalDragPx += dragAmount.x
-                            onPreviewChange(
-                                (dragStartFraction + totalDragPx / referenceWidthPx)
-                                    .coerceIn(PANE_SPLIT_RANGE)
+            modifier =
+                    Modifier.offset(
+                                    x =
+                                            gapStartX + DIVIDER_LAYOUT_WIDTH / 2 -
+                                                    DIVIDER_TOUCH_WIDTH / 2
                             )
-                        }
-                    },
-                    onDragEnd = {
-                        onCommit((dragStartFraction + totalDragPx / referenceWidthPx.coerceAtLeast(1f))
-                            .coerceIn(PANE_SPLIT_RANGE))
-                        onPreviewChange(null)
-                        onDragEnd()
-                    },
-                    onDragCancel = {
-                        onPreviewChange(null)
-                        onDragEnd()
-                    }
-                )
-            }
-            // Separate from the drag detector above: a plain tap (no
-            // touch-slop movement) never triggers detectDragGestures'
-            // callbacks, so it's free to swap this divider's two adjacent
-            // apps' slots instead — a quick way to re-order without a drag.
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { onTap() })
-            },
-        contentAlignment = Alignment.Center
+                            .width(DIVIDER_TOUCH_WIDTH)
+                            .fillMaxHeight()
+                            .pointerInput(referenceWidthPx, committedFraction) {
+                                var dragStartFraction = committedFraction
+                                var totalDragPx = 0f
+                                detectDragGestures(
+                                        onDragStart = {
+                                            dragStartFraction = committedFraction
+                                            totalDragPx = 0f
+                                            onDragStart()
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            if (referenceWidthPx > 0f) {
+                                                totalDragPx += dragAmount.x
+                                                onPreviewChange(
+                                                        (dragStartFraction +
+                                                                        totalDragPx /
+                                                                                referenceWidthPx)
+                                                                .coerceIn(PANE_SPLIT_RANGE)
+                                                )
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            onCommit(
+                                                    (dragStartFraction +
+                                                                    totalDragPx /
+                                                                            referenceWidthPx
+                                                                                    .coerceAtLeast(
+                                                                                            1f
+                                                                                    ))
+                                                            .coerceIn(PANE_SPLIT_RANGE)
+                                            )
+                                            onPreviewChange(null)
+                                            onDragEnd()
+                                        },
+                                        onDragCancel = {
+                                            onPreviewChange(null)
+                                            onDragEnd()
+                                        }
+                                )
+                            }
+                            // Separate from the drag detector above: a plain tap (no
+                            // touch-slop movement) never triggers detectDragGestures'
+                            // callbacks, so it's free to swap this divider's two adjacent
+                            // apps' slots instead — a quick way to re-order without a drag.
+                            .pointerInput(Unit) { detectTapGestures(onTap = { onTap() }) },
+            contentAlignment = Alignment.Center
     ) {
-        // Fixed dark floating pill (see paneDividerGrip) — a hairline border
-        // plus a top inner highlight sliver read as a lit glass edge, matching
-        // design/Main.dc.html's divider-grip pill exactly (18x42, rgba(22,26,
-        // 24,0.9) fill, 1px white-18% border, glowing accent dots).
+        // A plain slim light capsule — the native-looking "grab this" bar,
+        // simpler than the earlier dark accent-dot pill: just a soft shadow
+        // plus a solid light fill, sized narrow enough to read as a handle
+        // rather than a chip.
         val gripShape = RoundedCornerShape(50)
         Box(
-            Modifier
-                .width(DIVIDER_GRIP_WIDTH)
-                .height(DIVIDER_GRIP_HEIGHT)
-                .then(
-                    if (isDragging) Modifier
-                    else Modifier.shadow(
-                        elevation   = 8.dp,
-                        shape       = gripShape,
-                        ambientColor = Color.Black.copy(alpha = 0.5f),
-                        spotColor    = Color.Black.copy(alpha = 0.5f)
-                    )
-                )
-                .clip(gripShape)
-                .background(
-                    if (isDragging) SolidColor(Color.Transparent)
-                    else SolidColor(gripColor)
-                )
-                .then(
-                    if (isDragging) Modifier
-                    else Modifier.border(1.dp, Color.White.copy(alpha = 0.18f), gripShape)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (!isDragging) {
-                // Inner top highlight — the inset box-shadow from the design,
-                // approximated as a thin lit sliver along the capsule's crown.
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(Color.White.copy(alpha = 0.12f))
-                )
-
-                // Three small glowing accent dots — a clearer "grab this"
-                // affordance than a plain filled capsule, and one that still
-                // reads over either a light or dark pane since the capsule
-                // fill itself is fixed rather than mode-adaptive.
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    repeat(3) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Box(
-                                Modifier
-                                    .size(4.dp)
-                                    .clip(CircleShape)
-                                    .background(accent)
-                            )
-                        }
-                    }
-                }
-            }
-        }
+                Modifier.width(DIVIDER_GRIP_WIDTH)
+                        .height(DIVIDER_GRIP_HEIGHT)
+                        .then(
+                                if (isDragging) Modifier
+                                else
+                                        Modifier.shadow(
+                                                elevation = 4.dp,
+                                                shape = gripShape,
+                                                ambientColor = Color.Black.copy(alpha = 0.4f),
+                                                spotColor = Color.Black.copy(alpha = 0.4f)
+                                        )
+                        )
+                        .clip(gripShape)
+                        .background(
+                                if (isDragging) SolidColor(Color.Transparent)
+                                else SolidColor(gripColor)
+                        )
+        )
     }
 }
 
 @Composable
 private fun PipPane(
-    packageName: String,
-    inputEnabled: Boolean,
-    accent: Color,
-    isDayMode: Boolean,
-    isEditing: Boolean,
-    launchDelayMs: Long,
-    onAssign: () -> Unit,
-    modifier: Modifier = Modifier
+        packageName: String,
+        inputEnabled: Boolean,
+        accent: Color,
+        isDayMode: Boolean,
+        isEditing: Boolean,
+        launchDelayMs: Long,
+        onAssign: () -> Unit,
+        modifier: Modifier = Modifier
 ) {
     val tileBg = paneSurface(isDayMode)
     val dimColor = if (isDayMode) Color(0xFF6C737A) else Color(0xFF737A82)
-    val paneStroke = if (isDayMode) Color.Black.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.10f)
-    val paneRim = paneOuterStroke(isDayMode, accent)
-    val context  = LocalContext.current
+    val paneStroke =
+            if (isDayMode) Color.Black.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.10f)
+    val context = LocalContext.current
 
     if (packageName.isEmpty()) {
         Column(
-            modifier = modifier
-                .shadow(
-                    elevation    = 6.dp,
-                    shape        = PaneShape,
-                    ambientColor = Color.Black.copy(alpha = 0.4f),
-                    spotColor    = Color.Black.copy(alpha = 0.4f)
-                )
-                .clip(PaneShape)
-                .background(
-                    Brush.linearGradient(
-                        listOf(accent.copy(alpha = if (isDayMode) 0.10f else 0.08f), tileBg, tileBg)
-                    )
-                )
-                .border(PaneBorderWidth, paneRim, PaneShape)
-                .then(if (!isEditing) Modifier.clickable(onClick = onAssign) else Modifier),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                modifier =
+                        modifier.shadow(
+                                        elevation = 6.dp,
+                                        shape = PaneShape,
+                                        ambientColor = Color.Black.copy(alpha = 0.4f),
+                                        spotColor = Color.Black.copy(alpha = 0.4f)
+                                )
+                                .clip(PaneShape)
+                                .background(
+                                        Brush.linearGradient(
+                                                listOf(
+                                                        accent.copy(
+                                                                alpha =
+                                                                        if (isDayMode) 0.10f
+                                                                        else 0.08f
+                                                        ),
+                                                        tileBg,
+                                                        tileBg
+                                                )
+                                        )
+                                )
+                                .then(
+                                        if (!isEditing) Modifier.clickable(onClick = onAssign)
+                                        else Modifier
+                                ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
         ) {
             Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(accent.copy(alpha = if (isDayMode) 0.10f else 0.12f))
-                    .border(1.dp, accent.copy(alpha = 0.42f), RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Add, null, tint = accent, modifier = Modifier.size(23.dp))
-            }
+                    modifier =
+                            Modifier.size(52.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                            accent.copy(alpha = if (isDayMode) 0.10f else 0.12f)
+                                    )
+                                    .border(
+                                            1.dp,
+                                            accent.copy(alpha = 0.42f),
+                                            RoundedCornerShape(14.dp)
+                                    ),
+                    contentAlignment = Alignment.Center
+            ) { Icon(Icons.Default.Add, null, tint = accent, modifier = Modifier.size(23.dp)) }
             Spacer(Modifier.height(13.dp))
             Text(
-                stringResource(R.string.add_application).uppercase(),
-                color = if (isDayMode) Color(0xFF25282B) else Color(0xFFD8DDE2),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.6.sp,
-                textAlign     = TextAlign.Center
+                    stringResource(R.string.add_application).uppercase(),
+                    color = if (isDayMode) Color(0xFF25282B) else Color(0xFFD8DDE2),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.6.sp,
+                    textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(5.dp))
             Text(
-                stringResource(R.string.choose_pane_application).uppercase(),
-                color = dimColor.copy(alpha = 0.72f),
-                fontSize = 7.sp,
-                letterSpacing = 0.7.sp,
-                textAlign = TextAlign.Center
+                    stringResource(R.string.choose_pane_application).uppercase(),
+                    color = dimColor.copy(alpha = 0.72f),
+                    fontSize = 7.sp,
+                    letterSpacing = 0.7.sp,
+                    textAlign = TextAlign.Center
             )
         }
         return
     }
 
-    val pm    = context.packageManager
-    val icon  = remember(packageName) {
-        runCatching { pm.getApplicationIcon(packageName).toBitmap(96, 96) }.getOrNull()
-    }
-    val label = remember(packageName) {
-        runCatching {
-            pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
-        }.getOrDefault(packageName)
-    }
+    val pm = context.packageManager
+    val icon =
+            remember(packageName) {
+                runCatching { pm.getApplicationIcon(packageName).toBitmap(96, 96) }.getOrNull()
+            }
+    val label =
+            remember(packageName) {
+                runCatching {
+                            pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+                        }
+                        .getOrDefault(packageName)
+            }
 
     var embedFailed by remember(packageName) { mutableStateOf(false) }
     var placementReady by remember(packageName) { mutableStateOf(false) }
@@ -562,104 +542,117 @@ private fun PipPane(
     }
 
     Box(
-        modifier = modifier
-            .shadow(
-                elevation    = 6.dp,
-                shape        = PaneShape,
-                ambientColor = Color.Black.copy(alpha = 0.4f),
-                spotColor    = Color.Black.copy(alpha = 0.4f)
-            )
-            .clip(PaneShape)
-            .background(tileBg)
-            .border(PaneBorderWidth, paneRim, PaneShape),
-        contentAlignment = Alignment.Center
+            modifier =
+                    modifier.shadow(
+                                    elevation = 6.dp,
+                                    shape = PaneShape,
+                                    ambientColor = Color.Black.copy(alpha = 0.4f),
+                                    spotColor = Color.Black.copy(alpha = 0.4f)
+                            )
+                            .clip(PaneShape)
+                            .background(tileBg),
+            contentAlignment = Alignment.Center
     ) {
         if (embedFailed) {
             Column(
-                modifier = Modifier
-                    .then(if (!isEditing) Modifier.clickable { embedFailed = false } else Modifier),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier =
+                            Modifier.then(
+                                    if (!isEditing) Modifier.clickable { embedFailed = false }
+                                    else Modifier
+                            ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(58.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(if (isDayMode) Color.White else Color(0xFF141618))
-                        .border(1.dp, paneStroke, RoundedCornerShape(15.dp)),
-                    contentAlignment = Alignment.Center
+                        modifier =
+                                Modifier.size(58.dp)
+                                        .clip(RoundedCornerShape(15.dp))
+                                        .background(
+                                                if (isDayMode) Color.White else Color(0xFF141618)
+                                        )
+                                        .border(1.dp, paneStroke, RoundedCornerShape(15.dp)),
+                        contentAlignment = Alignment.Center
                 ) {
                     if (icon != null) {
                         androidx.compose.foundation.Image(
-                            painter = BitmapPainter(icon.asImageBitmap()),
-                            contentDescription = label,
-                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
+                                painter = BitmapPainter(icon.asImageBitmap()),
+                                contentDescription = label,
+                                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp))
                         )
                     } else {
-                        Icon(Icons.Default.PlayArrow, null, tint = accent, modifier = Modifier.size(32.dp))
+                        Icon(
+                                Icons.Default.PlayArrow,
+                                null,
+                                tint = accent,
+                                modifier = Modifier.size(32.dp)
+                        )
                     }
                 }
                 Text(
-                    text          = label.uppercase(),
-                    color = if (isDayMode) Color(0xFF25282B) else Color(0xFFD8DDE2),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.2.sp,
-                    textAlign     = TextAlign.Center,
-                    maxLines      = 1
+                        text = label.uppercase(),
+                        color = if (isDayMode) Color(0xFF25282B) else Color(0xFFD8DDE2),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.2.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
                 )
                 Text(
-                    text = stringResource(R.string.tap_to_retry).uppercase(),
-                    color = accent,
-                    fontSize = 7.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 1.4.sp
+                        text = stringResource(R.string.tap_to_retry).uppercase(),
+                        color = accent,
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 1.4.sp
                 )
             }
         } else {
             EmbeddedAppView(
-                packageName = packageName,
-                inputEnabled = inputEnabled,
-                launchDelayMs = launchDelayMs,
-                onPlacementReady = { placementReady = true },
-                onFailure = { embedFailed = true },
-                modifier = Modifier.fillMaxSize()
+                    packageName = packageName,
+                    inputEnabled = inputEnabled,
+                    launchDelayMs = launchDelayMs,
+                    onPlacementReady = { placementReady = true },
+                    onFailure = { embedFailed = true },
+                    modifier = Modifier.fillMaxSize()
             )
             AnimatedVisibility(
-                visible = !appRevealed,
-                exit = fadeOut(),
-                modifier = Modifier.fillMaxSize()
+                    visible = !appRevealed,
+                    exit = fadeOut(),
+                    modifier = Modifier.fillMaxSize()
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(tileBg),
-                    contentAlignment = Alignment.Center
+                        modifier = Modifier.fillMaxSize().background(tileBg),
+                        contentAlignment = Alignment.Center
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(
-                            color = accent,
-                            trackColor = dimColor.copy(alpha = 0.18f),
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(64.dp)
+                                color = accent,
+                                trackColor = dimColor.copy(alpha = 0.18f),
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(64.dp)
                         )
                         Box(
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(RoundedCornerShape(11.dp))
-                                .background(if (isDayMode) Color.White else Color(0xFF111315)),
-                            contentAlignment = Alignment.Center
+                                modifier =
+                                        Modifier.size(46.dp)
+                                                .clip(RoundedCornerShape(11.dp))
+                                                .background(
+                                                        if (isDayMode) Color.White
+                                                        else Color(0xFF111315)
+                                                ),
+                                contentAlignment = Alignment.Center
                         ) {
                             if (icon != null) {
                                 androidx.compose.foundation.Image(
-                                    painter = BitmapPainter(icon.asImageBitmap()),
-                                    contentDescription = label,
-                                    modifier = Modifier.size(34.dp).clip(RoundedCornerShape(8.dp))
+                                        painter = BitmapPainter(icon.asImageBitmap()),
+                                        contentDescription = label,
+                                        modifier =
+                                                Modifier.size(34.dp).clip(RoundedCornerShape(8.dp))
                                 )
                             } else {
                                 Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = label,
-                                    tint = accent,
-                                    modifier = Modifier.size(26.dp)
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = label,
+                                        tint = accent,
+                                        modifier = Modifier.size(26.dp)
                                 )
                             }
                         }
@@ -672,23 +665,19 @@ private fun PipPane(
 
 @Composable
 private fun EmbeddedAppView(
-    packageName: String,
-    inputEnabled: Boolean,
-    launchDelayMs: Long,
-    onPlacementReady: () -> Unit,
-    onFailure: () -> Unit,
-    modifier: Modifier = Modifier
+        packageName: String,
+        inputEnabled: Boolean,
+        launchDelayMs: Long,
+        onPlacementReady: () -> Unit,
+        onFailure: () -> Unit,
+        modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val embedder = remember(packageName) { TaskEmbedder(context) }
 
-    DisposableEffect(packageName) {
-        onDispose { embedder.release() }
-    }
+    DisposableEffect(packageName) { onDispose { embedder.release() } }
 
-    LaunchedEffect(inputEnabled) {
-        if (!inputEnabled) embedder.focusHost()
-    }
+    LaunchedEffect(inputEnabled) { if (!inputEnabled) embedder.focusHost() }
 
     // AndroidView's factory — and so this SurfaceHolder.Callback — runs only
     // once for this slot's lifetime: Home stays composed across navigation
@@ -707,63 +696,77 @@ private fun EmbeddedAppView(
     LaunchedEffect(packageName, hasSurface) {
         val info = surfaceInfo ?: return@LaunchedEffect
         embedder.attach(
-            packageName,
-            info.surface,
-            info.width,
-            info.height,
-            info.densityDpi,
-            launchDelayMs
-        ) { ok ->
-            if (ok) onPlacementReady() else onFailure()
-        }
+                packageName,
+                info.surface,
+                info.width,
+                info.height,
+                info.densityDpi,
+                launchDelayMs
+        ) { ok -> if (ok) onPlacementReady() else onFailure() }
     }
 
     AndroidView(
-        modifier = modifier,
-        factory = { viewContext ->
-            val view = EmbeddedSurfaceView(viewContext)
-            view.embedder = embedder
-            view.inputEnabled = inputEnabled
-            view.holder.addCallback(object : SurfaceHolder.Callback {
-                override fun surfaceCreated(holder: SurfaceHolder) {
-                    val frame = holder.surfaceFrame
-                    surfaceInfo = PipSurfaceInfo(
-                        holder.surface,
-                        frame.width(),
-                        frame.height(),
-                        viewContext.resources.displayMetrics.densityDpi
-                    )
-                }
+            modifier = modifier,
+            factory = { viewContext ->
+                val view = EmbeddedSurfaceView(viewContext)
+                view.embedder = embedder
+                view.inputEnabled = inputEnabled
+                view.holder.addCallback(
+                        object : SurfaceHolder.Callback {
+                            override fun surfaceCreated(holder: SurfaceHolder) {
+                                val frame = holder.surfaceFrame
+                                surfaceInfo =
+                                        PipSurfaceInfo(
+                                                holder.surface,
+                                                frame.width(),
+                                                frame.height(),
+                                                viewContext.resources.displayMetrics.densityDpi
+                                        )
+                            }
 
-                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-                    // Current property, not the factory-time closure value —
-                    // otherwise a resize after reassignment would land on the
-                    // already-released old embedder instead of the new one.
-                    view.embedder?.resize(width, height, viewContext.resources.displayMetrics.densityDpi)
-                    surfaceInfo = PipSurfaceInfo(
-                        holder.surface, width, height, viewContext.resources.displayMetrics.densityDpi
-                    )
-                }
+                            override fun surfaceChanged(
+                                    holder: SurfaceHolder,
+                                    format: Int,
+                                    width: Int,
+                                    height: Int
+                            ) {
+                                // Current property, not the factory-time closure value —
+                                // otherwise a resize after reassignment would land on the
+                                // already-released old embedder instead of the new one.
+                                view.embedder?.resize(
+                                        width,
+                                        height,
+                                        viewContext.resources.displayMetrics.densityDpi
+                                )
+                                surfaceInfo =
+                                        PipSurfaceInfo(
+                                                holder.surface,
+                                                width,
+                                                height,
+                                                viewContext.resources.displayMetrics.densityDpi
+                                        )
+                            }
 
-                override fun surfaceDestroyed(holder: SurfaceHolder) {
-                    surfaceInfo = null
-                    view.embedder?.detach()
-                }
-            })
-            view
-        },
-        update = { surfaceView ->
-            surfaceView.embedder = embedder
-            surfaceView.inputEnabled = inputEnabled
-        }
+                            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                                surfaceInfo = null
+                                view.embedder?.detach()
+                            }
+                        }
+                )
+                view
+            },
+            update = { surfaceView ->
+                surfaceView.embedder = embedder
+                surfaceView.inputEnabled = inputEnabled
+            }
     )
 }
 
 private data class PipSurfaceInfo(
-    val surface: Surface,
-    val width: Int,
-    val height: Int,
-    val densityDpi: Int
+        val surface: Surface,
+        val width: Int,
+        val height: Int,
+        val densityDpi: Int
 )
 
 internal class EmbeddedSurfaceView(context: Context) : SurfaceView(context) {
@@ -804,13 +807,13 @@ internal class EmbeddedSurfaceView(context: Context) : SurfaceView(context) {
 internal class TaskEmbedder(private val context: Context) {
     private data class DisplaySize(val width: Int, val height: Int, val densityDpi: Int)
     private data class StackSnapshot(
-        val stackId: Int,
-        val displayId: Int,
-        val topPackage: String?,
-        val taskPackages: Set<String>
+            val stackId: Int,
+            val displayId: Int,
+            val topPackage: String?,
+            val taskPackages: Set<String>
     ) {
         fun containsPackage(packageName: String): Boolean =
-            topPackage == packageName || packageName in taskPackages
+                topPackage == packageName || packageName in taskPackages
     }
 
     private var virtualDisplay: VirtualDisplay? = null
@@ -844,25 +847,25 @@ internal class TaskEmbedder(private val context: Context) {
     private val reconcileRunnable = Runnable { Thread { reconcilePlacement() }.start() }
 
     /**
-     * Detects an embedded app leaving its VirtualDisplay after the fact — e.g. the
-     * user opened it from Recents, or it was bounced to the default display because
-     * it doesn't support secondary displays — which otherwise leaves the pane
-     * showing a permanently black, empty VirtualDisplay with no way to recover
-     * short of restarting the whole launcher process.
+     * Detects an embedded app leaving its VirtualDisplay after the fact — e.g. the user opened it
+     * from Recents, or it was bounced to the default display because it doesn't support secondary
+     * displays — which otherwise leaves the pane showing a permanently black, empty VirtualDisplay
+     * with no way to recover short of restarting the whole launcher process.
      *
-     * android.app.TaskStackListener is @hide (see framework-stubs/), so this is a
-     * real subclass of the hidden runtime class, not a dynamic Proxy: registration
-     * requires an actual ITaskStackListener Binder, and JVM method dispatch matches
-     * on name+descriptor regardless of which class declared the compile-time type.
+     * android.app.TaskStackListener is @hide (see framework-stubs/), so this is a real subclass of
+     * the hidden runtime class, not a dynamic Proxy: registration requires an actual
+     * ITaskStackListener Binder, and JVM method dispatch matches on name+descriptor regardless of
+     * which class declared the compile-time type.
      */
-    private val taskStackListener = object : android.app.TaskStackListener() {
-        override fun onTaskStackChanged() {
-            // Very chatty — fires for unrelated stack churn system-wide — so
-            // debounce into a single reconcile rather than reacting per-event.
-            handler.removeCallbacks(reconcileRunnable)
-            handler.postDelayed(reconcileRunnable, STACK_CHANGED_DEBOUNCE_MS)
-        }
-    }
+    private val taskStackListener =
+            object : android.app.TaskStackListener() {
+                override fun onTaskStackChanged() {
+                    // Very chatty — fires for unrelated stack churn system-wide — so
+                    // debounce into a single reconcile rather than reacting per-event.
+                    handler.removeCallbacks(reconcileRunnable)
+                    handler.postDelayed(reconcileRunnable, STACK_CHANGED_DEBOUNCE_MS)
+                }
+            }
     private var appliedSize: DisplaySize? = null
     private var pendingSize: DisplaySize? = null
     private val applyPendingResize = Runnable {
@@ -877,23 +880,27 @@ internal class TaskEmbedder(private val context: Context) {
             if (surface != null) display.surface = surface
             appliedSize = requested
             android.util.Log.d(
-                "TaskEmbedder",
-                "resize applied ${requested.width}x${requested.height}@${requested.densityDpi}"
+                    "TaskEmbedder",
+                    "resize applied ${requested.width}x${requested.height}@${requested.densityDpi}"
             )
-        }.onFailure { android.util.Log.e("TaskEmbedder", "resize failed", it) }
+        }
+                .onFailure { android.util.Log.e("TaskEmbedder", "resize failed", it) }
     }
 
     fun attach(
-        packageName: String,
-        surface: Surface,
-        width: Int,
-        height: Int,
-        densityDpi: Int,
-        launchDelayMs: Long = 0L,
-        onResult: (Boolean) -> Unit
+            packageName: String,
+            surface: Surface,
+            width: Int,
+            height: Int,
+            densityDpi: Int,
+            launchDelayMs: Long = 0L,
+            onResult: (Boolean) -> Unit
     ) {
         if (Build.VERSION.SDK_INT < 27) {
-            android.util.Log.e("TaskEmbedder", "Cannot embed $packageName: Android 8.1/API 27 is required")
+            android.util.Log.e(
+                    "TaskEmbedder",
+                    "Cannot embed $packageName: Android 8.1/API 27 is required"
+            )
             onResult(false)
             return
         }
@@ -905,8 +912,8 @@ internal class TaskEmbedder(private val context: Context) {
         activeEmbeddersByPackage.put(packageName, this)?.let { previous ->
             if (previous !== this) {
                 android.util.Log.w(
-                    "TaskEmbedder",
-                    "pre-empting a stale TaskEmbedder still registered for $packageName"
+                        "TaskEmbedder",
+                        "pre-empting a stale TaskEmbedder still registered for $packageName"
                 )
                 previous.release()
             }
@@ -931,32 +938,45 @@ internal class TaskEmbedder(private val context: Context) {
                 launched = true
                 unregisterDisplayListener()
                 Thread {
-                    if (launchDelayMs > 0L) Thread.sleep(launchDelayMs)
-                    if (generation.get() != attachGeneration) return@Thread
-                    val ok = launchAndPlace(packageName, targetDisplayId, attachGeneration)
-                    handler.post {
-                        if (!ok) launched = false
-                        onResult(ok)
+                            if (launchDelayMs > 0L) Thread.sleep(launchDelayMs)
+                            if (generation.get() != attachGeneration) return@Thread
+                            val ok = launchAndPlace(packageName, targetDisplayId, attachGeneration)
+                            handler.post {
+                                if (!ok) launched = false
+                                onResult(ok)
+                            }
+                        }
+                        .start()
+            }
+            val listener =
+                    object : DisplayManager.DisplayListener {
+                        override fun onDisplayAdded(displayId: Int) {
+                            if (displayId != targetDisplayId) return
+                            android.util.Log.d("TaskEmbedder", "onDisplayAdded($displayId)")
+                            launchOnce()
+                        }
+                        override fun onDisplayRemoved(displayId: Int) {}
+                        override fun onDisplayChanged(displayId: Int) {}
                     }
-                }.start()
-            }
-            val listener = object : DisplayManager.DisplayListener {
-                override fun onDisplayAdded(displayId: Int) {
-                    if (displayId != targetDisplayId) return
-                    android.util.Log.d("TaskEmbedder", "onDisplayAdded($displayId)")
-                    launchOnce()
-                }
-                override fun onDisplayRemoved(displayId: Int) {}
-                override fun onDisplayChanged(displayId: Int) {}
-            }
             displayListener = listener
             displayManager.registerDisplayListener(listener, handler)
 
             val name = "TaskView@" + System.identityHashCode(this)
-            val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY or
-                VIRTUAL_DISPLAY_FLAG_DESTROY_CONTENT_ON_REMOVAL
-            val vd = displayManager.createVirtualDisplay(name, width, height, densityDpi, surface, flags, null, handler)
+            val flags =
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or
+                            DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY or
+                            VIRTUAL_DISPLAY_FLAG_DESTROY_CONTENT_ON_REMOVAL
+            val vd =
+                    displayManager.createVirtualDisplay(
+                            name,
+                            width,
+                            height,
+                            densityDpi,
+                            surface,
+                            flags,
+                            null,
+                            handler
+                    )
             virtualDisplay = vd
             attachedSurface = surface
             appliedSize = DisplaySize(width, height, densityDpi)
@@ -964,21 +984,28 @@ internal class TaskEmbedder(private val context: Context) {
             embeddedDisplayId = targetDisplayId
             dontOverrideDisplayInfo(targetDisplayId)
             installLandscapeOrientationGuard(vd)
-            android.util.Log.d("TaskEmbedder", "createVirtualDisplay ok displayId=$targetDisplayId, waiting for onDisplayAdded")
+            android.util.Log.d(
+                    "TaskEmbedder",
+                    "createVirtualDisplay ok displayId=$targetDisplayId, waiting for onDisplayAdded"
+            )
             handler.postDelayed(::launchOnce, 400)
-        }.onFailure {
-            android.util.Log.e("TaskEmbedder", "createVirtualDisplay failed", it)
-            onResult(false)
         }
+                .onFailure {
+                    android.util.Log.e("TaskEmbedder", "createVirtualDisplay failed", it)
+                    onResult(false)
+                }
     }
 
     /**
      * Shared launch+placement retry loop, used both by the initial [attach] and by
-     * [reconcilePlacement] relaunching into an already-created VirtualDisplay after
-     * the embedded app drifted off it. Must run off the main thread — it blocks on
-     * launch/placement polling.
+     * [reconcilePlacement] relaunching into an already-created VirtualDisplay after the embedded
+     * app drifted off it. Must run off the main thread — it blocks on launch/placement polling.
      */
-    private fun launchAndPlace(packageName: String, targetDisplayId: Int, attachGeneration: Int): Boolean {
+    private fun launchAndPlace(
+            packageName: String,
+            targetDisplayId: Int,
+            attachGeneration: Int
+    ): Boolean {
         ensureTaskStackListenerRegistered()
         val inputReady = createInputForwarder(targetDisplayId)
         if (!inputReady) return false
@@ -987,45 +1014,48 @@ internal class TaskEmbedder(private val context: Context) {
             val stacksBeforeLaunch = readStackSnapshots()
             val warmProcess = isPackageProcessRunning(packageName)
             android.util.Log.d(
-                "TaskEmbedder",
-                "launch attempt=${attempt + 1}/${MAX_LAUNCH_RETRIES + 1} " +
-                    "package=$packageName display=$targetDisplayId " +
-                    "warmProcess=$warmProcess " +
-                    "moveDelayMs=${if (warmProcess) WARM_PROCESS_MOVE_DELAY_MS else 0L}"
+                    "TaskEmbedder",
+                    "launch attempt=${attempt + 1}/${MAX_LAUNCH_RETRIES + 1} " +
+                            "package=$packageName display=$targetDisplayId " +
+                            "warmProcess=$warmProcess " +
+                            "moveDelayMs=${if (warmProcess) WARM_PROCESS_MOVE_DELAY_MS else 0L}"
             )
             val launchAccepted = launchPending(packageName, targetDisplayId)
             if (launchAccepted && warmProcess) {
                 Thread.sleep(WARM_PROCESS_MOVE_DELAY_MS)
                 if (generation.get() != attachGeneration) return false
             }
-            val placed = launchAccepted && placeLaunchedStack(
-                packageName,
-                targetDisplayId,
-                stacksBeforeLaunch.mapTo(mutableSetOf()) { it.stackId },
-                attachGeneration
-            )
+            val placed =
+                    launchAccepted &&
+                            placeLaunchedStack(
+                                    packageName,
+                                    targetDisplayId,
+                                    stacksBeforeLaunch.mapTo(mutableSetOf()) { it.stackId },
+                                    attachGeneration
+                            )
             if (placed) {
                 Thread.sleep(APP_STABILITY_CHECK_MS)
                 if (generation.get() != attachGeneration) return false
-                val ok = readStackSnapshots().any {
-                    it.displayId == targetDisplayId && it.containsPackage(packageName)
-                }
+                val ok =
+                        readStackSnapshots().any {
+                            it.displayId == targetDisplayId && it.containsPackage(packageName)
+                        }
                 if (ok) return true
             }
 
             embeddedStackId = -1
             if (attempt < MAX_LAUNCH_RETRIES) {
                 android.util.Log.w(
-                    "TaskEmbedder",
-                    "launch failed; retry ${attempt + 1}/$MAX_LAUNCH_RETRIES " +
-                        "package=$packageName display=$targetDisplayId"
+                        "TaskEmbedder",
+                        "launch failed; retry ${attempt + 1}/$MAX_LAUNCH_RETRIES " +
+                                "package=$packageName display=$targetDisplayId"
                 )
                 Thread.sleep(LAUNCH_RETRY_DELAY_MS)
             } else {
                 android.util.Log.e(
-                    "TaskEmbedder",
-                    "launch failed after ${MAX_LAUNCH_RETRIES + 1} attempts " +
-                        "package=$packageName display=$targetDisplayId"
+                        "TaskEmbedder",
+                        "launch failed after ${MAX_LAUNCH_RETRIES + 1} attempts " +
+                                "package=$packageName display=$targetDisplayId"
                 )
             }
         }
@@ -1033,11 +1063,11 @@ internal class TaskEmbedder(private val context: Context) {
     }
 
     /**
-     * Runs off the main thread (posted from [taskStackListener]'s debounce). Checks
-     * whether the embedded stack is still on its VirtualDisplay and, if it drifted
-     * away or was removed, relaunches the same package into the same display —
-     * otherwise the pane would stay a black, empty VirtualDisplay indefinitely,
-     * since nothing else ever calls attach() again after the first surfaceCreated().
+     * Runs off the main thread (posted from [taskStackListener]'s debounce). Checks whether the
+     * embedded stack is still on its VirtualDisplay and, if it drifted away or was removed,
+     * relaunches the same package into the same display — otherwise the pane would stay a black,
+     * empty VirtualDisplay indefinitely, since nothing else ever calls attach() again after the
+     * first surfaceCreated().
      */
     private fun reconcilePlacement() {
         val displayId = embeddedDisplayId
@@ -1046,8 +1076,10 @@ internal class TaskEmbedder(private val context: Context) {
         if (displayId < 0 || packageName == null || stackId < 0) return
 
         val attachGeneration = generation.get()
-        val snapshots = runCatching { readStackSnapshots() }.getOrNull()
-            ?: return // read failure: don't false-positive a relaunch, next tick re-checks
+        val snapshots =
+                runCatching { readStackSnapshots() }.getOrNull()
+                        ?: return // read failure: don't false-positive a relaunch, next tick
+        // re-checks
         val stillPlaced = snapshots.any { it.stackId == stackId && it.displayId == displayId }
         if (stillPlaced) return
 
@@ -1060,16 +1092,16 @@ internal class TaskEmbedder(private val context: Context) {
         // separate "pending reclaim" flag or lifecycle hook is needed here.
         if (isVisibleOnDefaultDisplay(packageName, snapshots)) {
             android.util.Log.d(
-                "TaskEmbedder",
-                "stack $stackId ($packageName) left display $displayId but is now on the default " +
-                    "display where the user can see/touch it directly — deferring reclaim until it isn't"
+                    "TaskEmbedder",
+                    "stack $stackId ($packageName) left display $displayId but is now on the default " +
+                            "display where the user can see/touch it directly — deferring reclaim until it isn't"
             )
             return
         }
 
         android.util.Log.w(
-            "TaskEmbedder",
-            "embedded stack $stackId ($packageName) drifted off display $displayId — relaunching"
+                "TaskEmbedder",
+                "embedded stack $stackId ($packageName) drifted off display $displayId — relaunching"
         )
         embeddedStackId = -1
         val ok = launchAndPlace(packageName, displayId, attachGeneration)
@@ -1077,22 +1109,23 @@ internal class TaskEmbedder(private val context: Context) {
     }
 
     /**
-     * Whether [packageName] is the TOPMOST stack on the default display (0) —
-     * the one real physical screen the user directly looks at/touches. A PIP
-     * pane's VirtualDisplay is just texture-composited into our own surface, so
-     * this is a robust proxy for "can the user see/interact with it outside my
-     * tiny pane right now" — without needing AMS's focused-stack bookkeeping,
-     * which [setFocusedStackMethod] itself pollutes for input routing between
-     * panes and so cannot be used to answer this question.
+     * Whether [packageName] is the TOPMOST stack on the default display (0) — the one real physical
+     * screen the user directly looks at/touches. A PIP pane's VirtualDisplay is just
+     * texture-composited into our own surface, so this is a robust proxy for "can the user
+     * see/interact with it outside my tiny pane right now" — without needing AMS's focused-stack
+     * bookkeeping, which [setFocusedStackMethod] itself pollutes for input routing between panes
+     * and so cannot be used to answer this question.
      *
-     * Must be the FIRST displayId==0 entry, not merely present anywhere in it:
-     * getAllStackInfos() returns stacks ordered front-to-back per display (matching
-     * `dumpsys activity activities`'s own "top to bottom" listing), and a package
-     * backgrounded behind the launcher is still technically "on display 0" —
-     * checking mere presence would defer forever once the user has already
-     * navigated back away from it.
+     * Must be the FIRST displayId==0 entry, not merely present anywhere in it: getAllStackInfos()
+     * returns stacks ordered front-to-back per display (matching `dumpsys activity activities`'s
+     * own "top to bottom" listing), and a package backgrounded behind the launcher is still
+     * technically "on display 0" — checking mere presence would defer forever once the user has
+     * already navigated back away from it.
      */
-    private fun isVisibleOnDefaultDisplay(packageName: String, snapshots: List<StackSnapshot>): Boolean {
+    private fun isVisibleOnDefaultDisplay(
+            packageName: String,
+            snapshots: List<StackSnapshot>
+    ): Boolean {
         val topOnDefaultDisplay = snapshots.firstOrNull { it.displayId == 0 } ?: return false
         return topOnDefaultDisplay.containsPackage(packageName)
     }
@@ -1104,107 +1137,134 @@ internal class TaskEmbedder(private val context: Context) {
             registerTaskStackListenerMethod!!.invoke(activityManagerService, taskStackListener)
             taskStackListenerRegistered = true
             android.util.Log.d("TaskEmbedder", "TaskStackListener registered")
-        }.onFailure {
-            android.util.Log.w(
-                "TaskEmbedder",
-                "TaskStackListener registration failed; pane will not auto-recover if the embedded app leaves its display",
-                it
-            )
         }
+                .onFailure {
+                    android.util.Log.w(
+                            "TaskEmbedder",
+                            "TaskStackListener registration failed; pane will not auto-recover if the embedded app leaves its display",
+                            it
+                    )
+                }
     }
 
     private fun unregisterTaskStackListenerIfNeeded() {
         if (!taskStackListenerRegistered) return
         taskStackListenerRegistered = false
-        runCatching { unregisterTaskStackListenerMethod!!.invoke(activityManagerService, taskStackListener) }
-            .onFailure { android.util.Log.w("TaskEmbedder", "TaskStackListener unregister failed", it) }
+        runCatching {
+            unregisterTaskStackListenerMethod!!.invoke(activityManagerService, taskStackListener)
+        }
+                .onFailure {
+                    android.util.Log.w("TaskEmbedder", "TaskStackListener unregister failed", it)
+                }
     }
 
     @SuppressLint("NewApi") // attach() rejects API levels below 27.
     private fun launchPending(packageName: String, displayId: Int): Boolean {
         val pm = context.packageManager
-        val intent = pm.getLaunchIntentForPackage(packageName)
-            ?: pm.queryIntentActivities(
-                Intent(Intent.ACTION_MAIN)
-                    .addCategory(Intent.CATEGORY_LAUNCHER)
-                    .setPackage(packageName),
-                0
-            )
-                .firstOrNull()?.activityInfo?.let { ai ->
-                    Intent(Intent.ACTION_MAIN)
-                        .addCategory(Intent.CATEGORY_LAUNCHER)
-                        .setClassName(ai.packageName, ai.name)
-                }
-            ?: return false
+        val intent =
+                pm.getLaunchIntentForPackage(packageName)
+                        ?: pm.queryIntentActivities(
+                                        Intent(Intent.ACTION_MAIN)
+                                                .addCategory(Intent.CATEGORY_LAUNCHER)
+                                                .setPackage(packageName),
+                                        0
+                                )
+                                .firstOrNull()
+                                ?.activityInfo
+                                ?.let { ai ->
+                                    Intent(Intent.ACTION_MAIN)
+                                            .addCategory(Intent.CATEGORY_LAUNCHER)
+                                            .setClassName(ai.packageName, ai.name)
+                                }
+                                ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         return runCatching {
-            val options = ActivityOptions.makeCustomAnimation(context, 0, 0)
-            ActivityOptions::class.java.getMethod("setLaunchDisplayId", Int::class.javaPrimitiveType)
-                .invoke(options, displayId)
-            val requestCode = NEXT_REQUEST_CODE.incrementAndGet()
-            val pendingIntent = PendingIntent.getActivity(
-                context,
-                requestCode,
-                intent,
-                PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            android.util.Log.d(
-                "TaskEmbedder",
-                "launch request package=$packageName component=${intent.component} " +
-                    "flags=0x${intent.flags.toString(16)} display=$displayId requestCode=$requestCode"
-            )
-            // Match ActivityView: the immutable token owns the base Intent;
-            // only the launch options are supplied when it is sent.
-            pendingIntent.send(null, 0, null, null, null, null, options.toBundle())
-            android.util.Log.d("TaskEmbedder", "launch accepted package=$packageName requestedDisplay=$displayId")
-            true
-        }.onFailure {
-            android.util.Log.e("TaskEmbedder", "launch $packageName onto display=$displayId failed", it)
-        }.getOrDefault(false)
+                    val options = ActivityOptions.makeCustomAnimation(context, 0, 0)
+                    ActivityOptions::class
+                            .java
+                            .getMethod("setLaunchDisplayId", Int::class.javaPrimitiveType)
+                            .invoke(options, displayId)
+                    val requestCode = NEXT_REQUEST_CODE.incrementAndGet()
+                    val pendingIntent =
+                            PendingIntent.getActivity(
+                                    context,
+                                    requestCode,
+                                    intent,
+                                    PendingIntent.FLAG_CANCEL_CURRENT or
+                                            PendingIntent.FLAG_IMMUTABLE
+                            )
+                    android.util.Log.d(
+                            "TaskEmbedder",
+                            "launch request package=$packageName component=${intent.component} " +
+                                    "flags=0x${intent.flags.toString(16)} display=$displayId requestCode=$requestCode"
+                    )
+                    // Match ActivityView: the immutable token owns the base Intent;
+                    // only the launch options are supplied when it is sent.
+                    pendingIntent.send(null, 0, null, null, null, null, options.toBundle())
+                    android.util.Log.d(
+                            "TaskEmbedder",
+                            "launch accepted package=$packageName requestedDisplay=$displayId"
+                    )
+                    true
+                }
+                .onFailure {
+                    android.util.Log.e(
+                            "TaskEmbedder",
+                            "launch $packageName onto display=$displayId failed",
+                            it
+                    )
+                }
+                .getOrDefault(false)
     }
 
     private fun dontOverrideDisplayInfo(displayId: Int) {
         runCatching {
             val windowManagerGlobal = Class.forName("android.view.WindowManagerGlobal")
             val iwm = windowManagerGlobal.getMethod("getWindowManagerService").invoke(null)
-            iwm.javaClass.getMethod("dontOverrideDisplayInfo", Int::class.javaPrimitiveType)
-                .invoke(iwm, displayId)
+            iwm.javaClass
+                    .getMethod("dontOverrideDisplayInfo", Int::class.javaPrimitiveType)
+                    .invoke(iwm, displayId)
             android.util.Log.d("TaskEmbedder", "dontOverrideDisplayInfo($displayId) ok")
-        }.onFailure {
-            android.util.Log.e("TaskEmbedder", "dontOverrideDisplayInfo failed", it)
         }
+                .onFailure {
+                    android.util.Log.e("TaskEmbedder", "dontOverrideDisplayInfo failed", it)
+                }
     }
 
     private fun installLandscapeOrientationGuard(display: VirtualDisplay) {
         runCatching {
             val displayContext = context.createDisplayContext(display.display)
-            val windowManager = displayContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val windowManager =
+                    displayContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val guard = View(displayContext)
-            val params = WindowManager.LayoutParams(
-                1,
-                1,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.START
-                alpha = 0f
-                screenOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                title = "EmbeddedLandscapeOrientationGuard"
-            }
+            val params =
+                    WindowManager.LayoutParams(
+                                    1,
+                                    1,
+                                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                                            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                                    PixelFormat.TRANSLUCENT
+                            )
+                            .apply {
+                                gravity = Gravity.TOP or Gravity.START
+                                alpha = 0f
+                                screenOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                title = "EmbeddedLandscapeOrientationGuard"
+                            }
             windowManager.addView(guard, params)
             orientationGuard = guard
             orientationGuardWindowManager = windowManager
             android.util.Log.d(
-                "TaskEmbedder",
-                "landscape orientation guard installed displayId=${display.display.displayId}"
+                    "TaskEmbedder",
+                    "landscape orientation guard installed displayId=${display.display.displayId}"
             )
-        }.onFailure {
-            android.util.Log.e("TaskEmbedder", "landscape orientation guard failed", it)
         }
+                .onFailure {
+                    android.util.Log.e("TaskEmbedder", "landscape orientation guard failed", it)
+                }
     }
 
     private fun removeLandscapeOrientationGuard() {
@@ -1213,8 +1273,9 @@ internal class TaskEmbedder(private val context: Context) {
         orientationGuard = null
         orientationGuardWindowManager = null
         if (guard != null && windowManager != null) {
-            runCatching { windowManager.removeViewImmediate(guard) }
-                .onFailure { android.util.Log.w("TaskEmbedder", "remove orientation guard failed", it) }
+            runCatching { windowManager.removeViewImmediate(guard) }.onFailure {
+                android.util.Log.w("TaskEmbedder", "remove orientation guard failed", it)
+            }
         }
     }
 
@@ -1234,8 +1295,8 @@ internal class TaskEmbedder(private val context: Context) {
         val forwarder = inputForwarder ?: return false
         val method = forwardEventMethod ?: return false
         return runCatching { method.invoke(forwarder, event) as? Boolean ?: false }
-            .onFailure { android.util.Log.e("TaskEmbedder", "input forwarding failed", it) }
-            .getOrDefault(false)
+                .onFailure { android.util.Log.e("TaskEmbedder", "input forwarding failed", it) }
+                .getOrDefault(false)
     }
 
     fun detach() {
@@ -1290,45 +1351,60 @@ internal class TaskEmbedder(private val context: Context) {
 
     private fun createInputForwarder(displayId: Int): Boolean {
         return runCatching {
-            val inputManagerClass = Class.forName("android.hardware.input.InputManager")
-            val inputManager = inputManagerClass.getMethod("getInstance").invoke(null)
-            val createMethod = inputManagerClass.getMethod(
-                "createInputForwarder",
-                Int::class.javaPrimitiveType
-            )
-            val forwarder = createMethod.invoke(inputManager, displayId)
-                ?: error("createInputForwarder returned null")
-            val method = forwarder.javaClass.getMethod("forwardEvent", InputEvent::class.java)
-                .apply { isAccessible = true }
-            inputForwarder = forwarder
-            forwardEventMethod = method
-            android.util.Log.d("TaskEmbedder", "createInputForwarder($displayId) ok")
-            true
-        }.onFailure {
-            inputForwarder = null
-            forwardEventMethod = null
-            android.util.Log.e("TaskEmbedder", "createInputForwarder($displayId) failed", it)
-        }.getOrDefault(false)
+                    val inputManagerClass = Class.forName("android.hardware.input.InputManager")
+                    val inputManager = inputManagerClass.getMethod("getInstance").invoke(null)
+                    val createMethod =
+                            inputManagerClass.getMethod(
+                                    "createInputForwarder",
+                                    Int::class.javaPrimitiveType
+                            )
+                    val forwarder =
+                            createMethod.invoke(inputManager, displayId)
+                                    ?: error("createInputForwarder returned null")
+                    val method =
+                            forwarder.javaClass.getMethod("forwardEvent", InputEvent::class.java)
+                                    .apply { isAccessible = true }
+                    inputForwarder = forwarder
+                    forwardEventMethod = method
+                    android.util.Log.d("TaskEmbedder", "createInputForwarder($displayId) ok")
+                    true
+                }
+                .onFailure {
+                    inputForwarder = null
+                    forwardEventMethod = null
+                    android.util.Log.e(
+                            "TaskEmbedder",
+                            "createInputForwarder($displayId) failed",
+                            it
+                    )
+                }
+                .getOrDefault(false)
     }
 
     private fun placeLaunchedStack(
-        packageName: String,
-        targetDisplayId: Int,
-        previousStackIds: Set<Int>,
-        attachGeneration: Int
+            packageName: String,
+            targetDisplayId: Int,
+            previousStackIds: Set<Int>,
+            attachGeneration: Int
     ): Boolean {
         for (attempt in 0 until PLACEMENT_ATTEMPTS) {
-            if (generation.get() != attachGeneration || virtualDisplay?.display?.displayId != targetDisplayId) {
+            if (generation.get() != attachGeneration ||
+                            virtualDisplay?.display?.displayId != targetDisplayId
+            ) {
                 return false
             }
 
             val matches = readStackSnapshots().filter { it.containsPackage(packageName) }
-            val stack = matches.firstOrNull { it.displayId == targetDisplayId }
-                ?: matches.firstOrNull { it.stackId !in previousStackIds && it.topPackage == packageName }
-                ?: matches.firstOrNull { it.topPackage == packageName }
+            val stack =
+                    matches.firstOrNull { it.displayId == targetDisplayId }
+                            ?: matches.firstOrNull {
+                                it.stackId !in previousStackIds && it.topPackage == packageName
+                            }
+                                    ?: matches.firstOrNull { it.topPackage == packageName }
 
             if (stack != null) {
-                if (stack.displayId != targetDisplayId && !moveStack(stack.stackId, targetDisplayId)) {
+                if (stack.displayId != targetDisplayId && !moveStack(stack.stackId, targetDisplayId)
+                ) {
                     return false
                 }
                 val moved = waitForStackDisplay(stack.stackId, targetDisplayId, attachGeneration)
@@ -1336,8 +1412,8 @@ internal class TaskEmbedder(private val context: Context) {
                     embeddedStackId = stack.stackId
                     focusEmbeddedStack()
                     android.util.Log.d(
-                        "TaskEmbedder",
-                        "placement complete package=$packageName stackId=${stack.stackId} displayId=$targetDisplayId"
+                            "TaskEmbedder",
+                            "placement complete package=$packageName stackId=${stack.stackId} displayId=$targetDisplayId"
                     )
                     return true
                 }
@@ -1346,27 +1422,37 @@ internal class TaskEmbedder(private val context: Context) {
             Thread.sleep(PLACEMENT_POLL_MS)
         }
         android.util.Log.e(
-            "TaskEmbedder",
-            "placement timed out package=$packageName requestedDisplay=$targetDisplayId"
+                "TaskEmbedder",
+                "placement timed out package=$packageName requestedDisplay=$targetDisplayId"
         )
         return false
     }
 
     private fun moveStack(stackId: Int, displayId: Int): Boolean {
         return runCatching {
-            ensureActivityManagerMethods()
-            moveStackToDisplayMethod!!.invoke(activityManagerService, stackId, displayId)
-            android.util.Log.d("TaskEmbedder", "moveStackToDisplay($stackId, $displayId) ok")
-            true
-        }.onFailure {
-            android.util.Log.e("TaskEmbedder", "moveStackToDisplay($stackId, $displayId) failed", it)
-        }.getOrDefault(false)
+                    ensureActivityManagerMethods()
+                    moveStackToDisplayMethod!!.invoke(activityManagerService, stackId, displayId)
+                    android.util.Log.d(
+                            "TaskEmbedder",
+                            "moveStackToDisplay($stackId, $displayId) ok"
+                    )
+                    true
+                }
+                .onFailure {
+                    android.util.Log.e(
+                            "TaskEmbedder",
+                            "moveStackToDisplay($stackId, $displayId) failed",
+                            it
+                    )
+                }
+                .getOrDefault(false)
     }
 
     private fun waitForStackDisplay(stackId: Int, displayId: Int, attachGeneration: Int): Boolean {
         repeat(MOVE_CONFIRM_ATTEMPTS) {
             if (generation.get() != attachGeneration) return false
-            if (readStackSnapshots().any { it.stackId == stackId && it.displayId == displayId }) return true
+            if (readStackSnapshots().any { it.stackId == stackId && it.displayId == displayId })
+                    return true
             Thread.sleep(PLACEMENT_POLL_MS)
         }
         return false
@@ -1379,10 +1465,11 @@ internal class TaskEmbedder(private val context: Context) {
     }
 
     private fun focusHostStack() {
-        val hostStack = readStackSnapshots()
-            .filter { it.displayId == 0 && it.containsPackage(context.packageName) }
-            .maxByOrNull { it.stackId }
-            ?: return
+        val hostStack =
+                readStackSnapshots()
+                        .filter { it.displayId == 0 && it.containsPackage(context.packageName) }
+                        .maxByOrNull { it.stackId }
+                        ?: return
         focusStack(hostStack.stackId)
     }
 
@@ -1399,58 +1486,66 @@ internal class TaskEmbedder(private val context: Context) {
             ensureActivityManagerMethods()
             setFocusedStackMethod!!.invoke(activityManagerService, stackId)
             lastFocusedStackId = stackId
-        }.onFailure {
-            android.util.Log.w("TaskEmbedder", "setFocusedStack($stackId) failed", it)
         }
+                .onFailure {
+                    android.util.Log.w("TaskEmbedder", "setFocusedStack($stackId) failed", it)
+                }
     }
 
     private fun readStackSnapshots(): List<StackSnapshot> {
         return runCatching {
-            ensureActivityManagerMethods()
-            val stacks = getAllStackInfosMethod!!.invoke(activityManagerService) as? Iterable<*>
-                ?: return@runCatching emptyList()
-            stacks.mapNotNull { stack ->
-                stack ?: return@mapNotNull null
-                val type = stack.javaClass
-                fun field(name: String): Any? = type.getDeclaredField(name).run {
-                    isAccessible = true
-                    get(stack)
-                }
-                val topPackage = (field("topActivity") as? ComponentName)?.packageName
-                val taskPackages = (field("taskNames") as? Array<*>)
-                    ?.mapNotNullTo(mutableSetOf()) { taskName ->
-                        ComponentName.unflattenFromString(taskName?.toString().orEmpty())?.packageName
+                    ensureActivityManagerMethods()
+                    val stacks =
+                            getAllStackInfosMethod!!.invoke(activityManagerService) as? Iterable<*>
+                                    ?: return@runCatching emptyList()
+                    stacks.mapNotNull { stack ->
+                        stack ?: return@mapNotNull null
+                        val type = stack.javaClass
+                        fun field(name: String): Any? =
+                                type.getDeclaredField(name).run {
+                                    isAccessible = true
+                                    get(stack)
+                                }
+                        val topPackage = (field("topActivity") as? ComponentName)?.packageName
+                        val taskPackages =
+                                (field("taskNames") as? Array<*>)?.mapNotNullTo(mutableSetOf()) {
+                                        taskName ->
+                                    ComponentName.unflattenFromString(
+                                                    taskName?.toString().orEmpty()
+                                            )
+                                            ?.packageName
+                                }
+                                        ?: emptySet()
+                        StackSnapshot(
+                                stackId = field("stackId") as Int,
+                                displayId = field("displayId") as Int,
+                                topPackage = topPackage,
+                                taskPackages = taskPackages
+                        )
                     }
-                    ?: emptySet()
-                StackSnapshot(
-                    stackId = field("stackId") as Int,
-                    displayId = field("displayId") as Int,
-                    topPackage = topPackage,
-                    taskPackages = taskPackages
-                )
-            }
-        }.onFailure {
-            android.util.Log.w("TaskEmbedder", "getAllStackInfos failed", it)
-        }.getOrDefault(emptyList())
+                }
+                .onFailure { android.util.Log.w("TaskEmbedder", "getAllStackInfos failed", it) }
+                .getOrDefault(emptyList())
     }
 
     private fun ensureActivityManagerMethods() {
         if (activityManagerService != null) return
         synchronized(this) {
             if (activityManagerService != null) return
-            val getService = Class.forName("android.app.ActivityManager").getDeclaredMethod("getService")
-                .apply { isAccessible = true }
+            val getService =
+                    Class.forName("android.app.ActivityManager")
+                            .getDeclaredMethod("getService")
+                            .apply { isAccessible = true }
             val service = getService.invoke(null)
             getAllStackInfosMethod = service.javaClass.getMethod("getAllStackInfos")
-            moveStackToDisplayMethod = service.javaClass.getMethod(
-                "moveStackToDisplay",
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType
-            )
-            setFocusedStackMethod = service.javaClass.getMethod(
-                "setFocusedStack",
-                Int::class.javaPrimitiveType
-            )
+            moveStackToDisplayMethod =
+                    service.javaClass.getMethod(
+                            "moveStackToDisplay",
+                            Int::class.javaPrimitiveType,
+                            Int::class.javaPrimitiveType
+                    )
+            setFocusedStackMethod =
+                    service.javaClass.getMethod("setFocusedStack", Int::class.javaPrimitiveType)
             activityManagerService = service
 
             // Isolated from the block above: if this fails on some build, the
@@ -1458,15 +1553,21 @@ internal class TaskEmbedder(private val context: Context) {
             // pane just won't auto-recover from a drifted stack.
             runCatching {
                 val iTaskStackListener = Class.forName("android.app.ITaskStackListener")
-                registerTaskStackListenerMethod = service.javaClass.getMethod(
-                    "registerTaskStackListener", iTaskStackListener
-                )
-                unregisterTaskStackListenerMethod = service.javaClass.getMethod(
-                    "unregisterTaskStackListener", iTaskStackListener
-                )
-            }.onFailure {
-                android.util.Log.w("TaskEmbedder", "TaskStackListener methods unavailable", it)
+                registerTaskStackListenerMethod =
+                        service.javaClass.getMethod("registerTaskStackListener", iTaskStackListener)
+                unregisterTaskStackListenerMethod =
+                        service.javaClass.getMethod(
+                                "unregisterTaskStackListener",
+                                iTaskStackListener
+                        )
             }
+                    .onFailure {
+                        android.util.Log.w(
+                                "TaskEmbedder",
+                                "TaskStackListener methods unavailable",
+                                it
+                        )
+                    }
         }
     }
 
@@ -1486,13 +1587,13 @@ internal class TaskEmbedder(private val context: Context) {
 
         // Cross-instance guard against two TaskEmbedders for the same package
         // being alive at once (see the comment in attach()).
-        val activeEmbeddersByPackage = java.util.concurrent.ConcurrentHashMap<String, TaskEmbedder>()
+        val activeEmbeddersByPackage =
+                java.util.concurrent.ConcurrentHashMap<String, TaskEmbedder>()
 
         // setFocusedStack is a single system-wide value, not per-embedder, so the
         // "already focused, skip the call" guard in focusStack() must be shared
         // across every TaskEmbedder instance too (see the comment there).
-        @Volatile
-        var lastFocusedStackId = -1
+        @Volatile var lastFocusedStackId = -1
 
         // Called right before a deliberate process kill (see MainActivity's
         // restartLauncher()) so every VirtualDisplay gets a chance to detach

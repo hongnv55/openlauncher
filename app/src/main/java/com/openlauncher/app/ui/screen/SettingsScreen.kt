@@ -292,7 +292,7 @@ fun SettingsScreen(
                                         AppLanguage.ENGLISH    -> "English"
                                         AppLanguage.VIETNAMESE -> "Tiếng Việt"
                                     },
-                                    fontSize = 9.sp,
+                                    fontSize = 13.sp,
                                     letterSpacing = 0.5.sp
                                 )
                             },
@@ -343,7 +343,7 @@ fun SettingsScreen(
                     FilterChip(
                         selected = settings.unitSystem == UnitSystem.METRIC,
                         onClick  = { onUpdate { copy(unitSystem = UnitSystem.METRIC) } },
-                        label    = { Text(stringResource(R.string.metric), fontSize = 11.sp) },
+                        label    = { Text(stringResource(R.string.metric), fontSize = 13.sp) },
                         colors   = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = accent,
                             selectedLabelColor     = Color.Black
@@ -353,7 +353,7 @@ fun SettingsScreen(
                     FilterChip(
                         selected = settings.unitSystem == UnitSystem.IMPERIAL,
                         onClick  = { onUpdate { copy(unitSystem = UnitSystem.IMPERIAL) } },
-                        label    = { Text(stringResource(R.string.imperial), fontSize = 11.sp) },
+                        label    = { Text(stringResource(R.string.imperial), fontSize = 13.sp) },
                         colors   = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = accent,
                             selectedLabelColor     = Color.Black
@@ -387,8 +387,8 @@ fun SettingsScreen(
                 onClick = { onAssignPip(0) },
                 trailingContent = {
                     if (firstPackage.isNotEmpty()) {
-                        IconButton(onClick = { onClearPip(0) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
+                        IconButton(onClick = { onClearPip(0) }, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(28.dp))
                         }
                     }
                 }
@@ -404,8 +404,8 @@ fun SettingsScreen(
                 onClick = { onAssignPip(1) },
                 trailingContent = {
                     if (secondPackage.isNotEmpty()) {
-                        IconButton(onClick = { onClearPip(1) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
+                        IconButton(onClick = { onClearPip(1) }, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(28.dp))
                         }
                     }
                 }
@@ -421,8 +421,8 @@ fun SettingsScreen(
                 onClick = { onAssignPip(2) },
                 trailingContent = {
                     if (thirdPackage.isNotEmpty()) {
-                        IconButton(onClick = { onClearPip(2) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(14.dp))
+                        IconButton(onClick = { onClearPip(2) }, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.Default.Close, null, tint = Color(0xFF993333), modifier = Modifier.size(28.dp))
                         }
                     }
                 }
@@ -460,7 +460,7 @@ fun SettingsScreen(
                                         DayNightMode.AUTO   -> stringResource(R.string.sunset)
                                         DayNightMode.SYSTEM -> stringResource(R.string.system)
                                     },
-                                    fontSize  = 9.sp,
+                                    fontSize  = 13.sp,
                                     letterSpacing = 0.5.sp
                                 )
                             },
@@ -498,7 +498,7 @@ fun SettingsScreen(
                                         SidebarPosition.RIGHT  -> stringResource(R.string.right)
                                         SidebarPosition.BOTTOM -> stringResource(R.string.bottom)
                                     },
-                                    fontSize = 9.sp,
+                                    fontSize = 13.sp,
                                     letterSpacing = 0.5.sp
                                 )
                             },
@@ -638,7 +638,7 @@ fun SettingsScreen(
                         FilterChip(
                             selected = settings.appFont == font,
                             onClick  = { onUpdate { copy(appFont = font) } },
-                            label    = { Text(fontDisplayName(font), fontSize = 9.sp, letterSpacing = 0.5.sp) },
+                            label    = { Text(fontDisplayName(font), fontSize = 13.sp, letterSpacing = 0.5.sp) },
                             colors   = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = accent,
                                 selectedLabelColor     = Color.Black
@@ -1084,9 +1084,9 @@ private fun SettingsRow(
         Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = labelColor, fontSize = 13.sp)
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = labelColor, fontSize = 15.sp)
             if (sublabel.isNotEmpty())
-                Text(sublabel, style = MaterialTheme.typography.labelSmall, color = subColor, fontSize = 11.sp)
+                Text(sublabel, style = MaterialTheme.typography.labelSmall, color = subColor, fontSize = 13.sp)
         }
         content()
     }
@@ -1116,9 +1116,9 @@ private fun ColumnScope.SettingsButton(
         Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = labelColor, fontSize = 13.sp)
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = labelColor, fontSize = 15.sp)
             if (sublabel.isNotEmpty())
-                Text(sublabel, style = MaterialTheme.typography.labelSmall, color = subColor, fontSize = 11.sp)
+                Text(sublabel, style = MaterialTheme.typography.labelSmall, color = subColor, fontSize = 13.sp)
         }
         trailingContent()
         Icon(Icons.Default.ChevronRight, null, tint = chevronC, modifier = Modifier.size(16.dp))

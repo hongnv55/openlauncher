@@ -1,6 +1,7 @@
 package com.openlauncher.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,15 +27,20 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openlauncher.app.model.NowPlayingState
 import java.util.Calendar
 import kotlinx.coroutines.delay
+
+// Shared by both island states so the pill's bottom edge lands in the same
+// place regardless of which is showing. Sized so that, with the island top-
+// anchored `gap` (10dp, HomeScreen's own constant) below the screen edge, its
+// bottom sits `gap` above the status-bar strip's own bottom (APP_HEADER_
+// HEIGHT, 59dp) — the same 10dp breathing room on both edges.
+private val ISLAND_CONTENT_HEIGHT = 49.dp
 
 /**
  * The status bar's clock pill. Sized entirely by its own content — a compact
@@ -57,7 +63,23 @@ fun DynamicIsland(
     val pillBorder = Color(0x1FFFFFFF)
     val textColor  = Color(0xFFF2F2F2)
 
-    val hasNowPlaying = nowPlaying != null && nowPlaying.title.isNotEmpty()
+    // A paused (but not yet torn-down) media session would otherwise pin the
+    // island on the now-playing view forever — plenty of apps hold their
+    // session open indefinitely once paused. Give it a 3s grace period after
+    // pausing before falling back to the clock, so a quick pause/resume
+    // doesn't flicker, but an actually-abandoned session does settle back.
+    val hasNowPlayingRaw = nowPlaying != null && nowPlaying.title.isNotEmpty()
+    var showNowPlaying by remember { mutableStateOf(hasNowPlayingRaw) }
+    LaunchedEffect(hasNowPlayingRaw, nowPlaying?.isPlaying) {
+        when {
+            !hasNowPlayingRaw          -> showNowPlaying = false
+            nowPlaying?.isPlaying == true -> showNowPlaying = true
+            else -> {
+                delay(3_000)
+                showNowPlaying = false
+            }
+        }
+    }
 
     Box(
         modifier = modifier
@@ -65,9 +87,9 @@ fun DynamicIsland(
             .background(pillBg)
             .border(Dp.Hairline, pillBorder, RoundedCornerShape(50))
     ) {
-        if (hasNowPlaying) {
+        if (showNowPlaying && nowPlaying != null) {
             NowPlayingIslandContent(
-                state       = nowPlaying!!,
+                state       = nowPlaying,
                 accent      = accent,
                 textColor   = textColor,
                 onPlayPause = onPlayPause
@@ -93,7 +115,7 @@ private fun ClockIslandContent(textColor: Color) {
     val month   = calendar.get(Calendar.MONTH) + 1
 
     Row(
-        modifier          = Modifier.height(45.dp).padding(horizontal = 19.dp),
+        modifier          = Modifier.height(ISLAND_CONTENT_HEIGHT).padding(horizontal = 19.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -101,7 +123,6 @@ private fun ClockIslandContent(textColor: Color) {
             color         = textColor,
             fontSize      = 20.sp,
             fontWeight    = FontWeight.SemiBold,
-            fontFamily    = FontFamily.Monospace,
             letterSpacing = 0.2.sp
         )
         Spacer(Modifier.width(9.dp))
@@ -110,7 +131,6 @@ private fun ClockIslandContent(textColor: Color) {
             color         = textColor.copy(alpha = 0.68f),
             fontSize      = 20.sp,
             fontWeight    = FontWeight.SemiBold,
-            fontFamily    = FontFamily.Monospace,
             letterSpacing = 0.2.sp
         )
     }
@@ -124,13 +144,13 @@ private fun NowPlayingIslandContent(
     onPlayPause: () -> Unit
 ) {
     Row(
-        modifier          = Modifier.height(51.dp).padding(start = 4.dp, end = 6.dp),
+        modifier          = Modifier.height(ISLAND_CONTENT_HEIGHT).padding(start = 4.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(43.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .size(32.dp)
+                .clip(CircleShape)
                 .background(accent.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center
         ) {
@@ -139,10 +159,10 @@ private fun NowPlayingIslandContent(
                     painter            = BitmapPainter(state.albumArt.asImageBitmap()),
                     contentDescription = null,
                     contentScale       = ContentScale.Crop,
-                    modifier           = Modifier.size(43.dp).clip(RoundedCornerShape(12.dp))
+                    modifier           = Modifier.size(32.dp).clip(CircleShape)
                 )
             } else {
-                Icon(Icons.Default.MusicNote, null, tint = accent, modifier = Modifier.size(23.dp))
+                Icon(Icons.Default.MusicNote, null, tint = accent, modifier = Modifier.size(18.dp))
             }
         }
         Spacer(Modifier.width(8.dp))
@@ -151,8 +171,20 @@ private fun NowPlayingIslandContent(
             color      = textColor,
             fontSize   = 17.sp,
             maxLines   = 1,
-            overflow   = TextOverflow.Ellipsis,
-            modifier   = Modifier.widthIn(max = 120.dp)
+            // A fixed (rather than max-capped) width so the pill claims a
+            // consistent, wider footprint in media mode — the viewport the
+            // marquee scrolls the title through, wide enough to read several
+            // words at a glance instead of just a fragment.
+            modifier   = Modifier
+                .width(190.dp)
+                .basicMarquee(
+                    iterations        = Int.MAX_VALUE,
+                    // Pause on the title's start position for a beat before
+                    // each pass — both the initial one and every repeat after
+                    // a full loop — instead of scrolling continuously.
+                    repeatDelayMillis = 1_200,
+                    initialDelayMillis = 1_200
+                )
         )
         Spacer(Modifier.width(8.dp))
         Box(

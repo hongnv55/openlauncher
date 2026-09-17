@@ -93,16 +93,13 @@ fun paneOuterStroke(isDayMode: Boolean, accent: Color): Color =
     )
 
 /**
- * The drag grip's own capsule fill — a fixed dark chip regardless of mode,
- * matching the Dynamic Island's always-black treatment (design ref:
- * `design/Main.dc.html`'s divider-grip pill, `rgba(22,26,24,0.9)`). Unlike the
- * old per-mode grey, this reads as one consistent floating affordance against
- * either a light or dark pane, with its own border/shadow doing the
- * separation work instead of tone-inverting. [isDayMode] is kept in the
- * signature only so call sites don't need to change if a mode-aware tweak is
- * ever reintroduced.
+ * The drag grip's own capsule fill — a fixed light bar regardless of mode, so
+ * it reads as one consistent floating handle against either a light or dark
+ * pane rather than tone-inverting. [isDayMode] is kept in the signature only
+ * so call sites don't need to change if a mode-aware tweak is ever
+ * reintroduced.
  */
-fun paneDividerGrip(isDayMode: Boolean): Color = Color(0xE6161A18)
+fun paneDividerGrip(isDayMode: Boolean): Color = Color(0xF2F2F2F2)
 
 /**
  * The complete content-card treatment in one call, so the call sites are
