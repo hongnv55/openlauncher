@@ -15,8 +15,9 @@ android {
         applicationId  = "com.openlauncher.app"
         minSdk         = 21
         targetSdk      = 36
-        versionCode    = 11
-        versionName    = "1.0.0-beta"
+        // CI overrides: VERSION_CODE / VERSION_NAME. Local builds keep the defaults.
+        versionCode    = providers.environmentVariable("VERSION_CODE").map(String::toInt).getOrElse(12)
+        versionName    = providers.environmentVariable("VERSION_NAME").getOrElse("1.0.1-beta")
         // Date only, deliberately not a timestamp: this value is baked into
         // BuildConfig, so a seconds-resolution one would invalidate it (and
         // everything downstream of it) on every single build.
